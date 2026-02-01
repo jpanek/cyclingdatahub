@@ -1,0 +1,42 @@
+/* # static/css/dashboard.css */
+
+:root {
+    --dash-accent: #4a5568; /* Muted Charcoal */
+    --dash-border: #e2e8f0; /* Soft Grey */
+    --dash-text: #2d3748;
+}
+
+.dashboard-controls .btn-outline-custom {
+    color: var(--dash-accent);
+    border-color: var(--dash-border);
+    background-color: #fff;
+    height: 38px;
+    transition: all 0.2s ease;
+}
+
+.dashboard-controls .btn-outline-custom:hover,
+.dashboard-controls .btn-outline-custom.active,
+.dashboard-controls .show > .btn-outline-custom.dropdown-toggle {
+    background-color: var(--dash-accent) !important;
+    border-color: var(--dash-accent) !important;
+    color: #fff !important;
+}
+
+.dashboard-controls .form-select-custom {
+    height: 38px;
+    border-color: var(--dash-border);
+    color: var(--dash-text);
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+
+.dashboard-controls .form-select-custom:focus {
+    border-color: var(--dash-accent);
+    box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.1);
+}
+
+.custom-dropdown-menu {
+    border: 1px solid var(--dash-border);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}

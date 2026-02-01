@@ -1,0 +1,21 @@
+ # # .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+
+# Project Logs & Dumps
+logs/*.json
+logs/*.log
+
+# Configuration & Secrets
+config.py
+
+# Database
+*.db
+*.sqlite3
+
+# System
+.DS_Store

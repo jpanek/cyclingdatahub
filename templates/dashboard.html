@@ -1,0 +1,251 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Cycling Stats{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Activity history</h1>
+        <p class="text-muted">Monthly trends of all activities.</p>
+    </div>
+</div>
+
+<!-- Slicers & selectors -->
+<div class="d-flex flex-wrap gap-2 mb-4 align-items-center dashboard-controls">
+    
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-custom active metric-btn" 
+                onclick="setMetric('distance_km', 'Distance (km)', 'rgba(74, 85, 104, 0.6)')">Distance</button>
+        <button type="button" class="btn btn-outline-custom metric-btn" 
+                onclick="setMetric('activities', 'Activity Count', 'rgba(107, 114, 128, 0.6)')">Count</button>
+        <button type="button" class="btn btn-outline-custom metric-btn" 
+                onclick="setMetric('duration_hours', 'Time (hrs)', 'rgba(113, 128, 150, 0.6)')">Time</button>
+        <button type="button" class="btn btn-outline-custom metric-btn" 
+                onclick="setMetric('total_kj', 'Energy (kJ)', 'rgba(160, 174, 192, 0.6)')">Energy</button>
+    </div>
+
+    <div class="dropdown" style="min-width: 200px;">
+        <button class="btn btn-outline-custom dropdown-toggle w-100 text-start" type="button" id="typeDropdown" data-bs-toggle="dropdown">
+            Activity Types
+        </button>
+        <ul class="dropdown-menu p-3 custom-dropdown-menu" aria-labelledby="typeDropdown" style="max-height: 400px; overflow-y: auto;">
+            <li class="d-flex justify-content-between mb-2">
+                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-muted" 
+                        onclick="bulkSelect(true, event)">Select All</button>
+                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-danger opacity-75" 
+                        onclick="bulkSelect(false, event)">Deselect All</button>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            
+            {% for row in activity_types %}
+            <li>
+                <div class="form-check">
+                    <input class="form-check-input type-checkbox" type="checkbox" 
+                           value="{{ row.type }}" 
+                           id="type{{ row.type }}" 
+                           {% if loop.index0 < 4 %}checked{% endif %} 
+                           onchange="updateDashboard()">
+                    <label class="form-check-label text-muted" for="type{{ row.type }}">
+                        {{ row.type }} <span class="small opacity-50">({{ row.activity_count }})</span>
+                    </label>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div style="min-width: 160px;">
+        <select id="rangeSelector" class="form-select form-select-custom" onchange="updateDashboard()">
+            <option value="6">Last 6 Months</option>
+            <option value="12" selected>Last Year</option>
+            <option value="24">Last 2 Years</option>
+            <option value="36">Last 3 Years</option>
+            <option value="0">Full History</option>
+        </select>
+    </div>
+</div>
+
+<!-- Summary tiles -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="p-3 border rounded bg-white shadow-sm">
+            <div class="text-muted small text-uppercase fw-bold">Activities</div>
+            <div id="stat-count" class="h4 mb-0 fw-bold">0</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="p-3 border rounded bg-white shadow-sm">
+            <div class="text-muted small text-uppercase fw-bold">Distance</div>
+            <div id="stat-distance" class="h4 mb-0 fw-bold">0 km</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="p-3 border rounded bg-white shadow-sm">
+            <div class="text-muted small text-uppercase fw-bold">Time</div>
+            <div id="stat-time" class="h4 mb-0 fw-bold">0h</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="p-3 border rounded bg-white shadow-sm">
+            <div class="text-muted small text-uppercase fw-bold">Energy</div>
+            <div id="stat-energy" class="h4 mb-0 fw-bold">0 kJ</div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Chart goes here -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+
+            <div class="card-body">
+                <canvas id="distanceChart" style="width: 100%; height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const rawData = {{ chart_data | tojson }};
+    
+    let currentMetric = 'distance_km';
+    let currentLabel = 'Distance (km)';
+
+    // Helper to generate consistent colors for activity types
+    const typeColors = {
+        'Ride': 'rgba(54, 162, 235, 0.7)',
+        'Run': 'rgba(255, 99, 132, 0.7)',
+        'Walk': 'rgba(75, 192, 192, 0.7)',
+        'Hike': 'rgba(255, 159, 64, 0.7)',
+        'VirtualRide': 'rgba(153, 102, 255, 0.7)'
+    };
+
+    const ctx = document.getElementById('distanceChart').getContext('2d');
+
+    const myChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                // If the metric is 'activities', don't use decimals
+                                if (currentMetric === 'activities') {
+                                    label += Math.round(context.parsed.y);
+                                } else {
+                                    label += context.parsed.y.toFixed(1);
+                                }
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    function setMetric(key, label, color) {
+        currentMetric = key;
+        currentLabel = label;
+        document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+        if (event && event.target) event.target.classList.add('active');
+        updateDashboard();
+    }
+
+    function bulkSelect(shouldSelect, event) {
+        // 1. Prevent the dropdown from closing
+        if (event) {
+            event.stopPropagation();
+        }
+
+        // 2. Update checkboxes
+        const checkboxes = document.querySelectorAll('.type-checkbox');
+        checkboxes.forEach(cb => cb.checked = shouldSelect);
+
+        // 3. Refresh the chart
+        updateDashboard();
+    }
+
+    function updateDashboard() {
+        const selectedRange = parseInt(document.getElementById('rangeSelector').value);
+        const checkedBoxes = document.querySelectorAll('.type-checkbox:checked');
+        const selectedTypes = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        // 1. Filter by Time
+        let cutoffDate = new Date();
+        if (selectedRange > 0) cutoffDate.setMonth(cutoffDate.getMonth() - selectedRange);
+
+        const timeFiltered = rawData.filter(item => {
+            const itemDate = new Date(item.month);
+            return selectedRange === 0 || itemDate >= cutoffDate;
+        });
+
+        // 1. Further filter by selected types for the summary
+        const fullyFiltered = timeFiltered.filter(item => selectedTypes.includes(item.type));
+
+        console.log("Current Filtered Data:");
+        console.table(fullyFiltered);
+
+        // 2. Calculate Totals
+        const totalActivities = fullyFiltered.reduce((sum, item) => sum + item.activities, 0);
+        const totalDistance = fullyFiltered.reduce((sum, item) => sum + item.distance_km, 0);
+        const totalDuration = fullyFiltered.reduce((sum, item) => sum + item.duration_hours, 0);
+        const totalEnergy = fullyFiltered.reduce((sum, item) => sum + (item.total_kj || 0), 0);
+
+        // 3. Update the UI
+        document.getElementById('stat-count').innerText = totalActivities.toLocaleString();
+        document.getElementById('stat-distance').innerText = `${totalDistance.toFixed(1)} km`;
+        document.getElementById('stat-time').innerText = `${Math.floor(totalDuration)}h ${Math.round((totalDuration % 1) * 60)}m`;
+        document.getElementById('stat-energy').innerText = `${Math.round(totalEnergy).toLocaleString()} kJ`;
+
+        // 2. Get unique months (X-Axis Labels)
+        const labels = [...new Set(timeFiltered.map(item => item.month))];
+
+        // 3. Create a Dataset for EACH selected type
+        const datasets = selectedTypes.map(type => {
+            return {
+                label: type,
+                // Map data for this specific type to the specific months
+                data: labels.map(month => {
+                    const entry = timeFiltered.find(d => d.month === month && d.type === type);
+                    return entry ? (entry[currentMetric] || 0) : 0;
+                }),
+                backgroundColor: typeColors[type] || `rgba(100, 100, 100, 0.5)`,
+                borderWidth: 1
+            };
+        });
+
+        // 4. Update Chart
+        myChart.data.labels = labels;
+        myChart.data.datasets = datasets;
+        
+        // Update Title/Label reference
+        myChart.options.plugins.title = { display: true, text: currentLabel };
+        
+        myChart.update();
+
+        // Update Button UI
+        const typeBtn = document.getElementById('typeDropdown');
+        if (typeBtn) typeBtn.innerText = `Types (${selectedTypes.length})`;
+    }
+
+    window.onload = updateDashboard;
+</script>
+
+{% endblock %}
