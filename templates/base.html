@@ -21,6 +21,12 @@
             <div class="navbar-nav me-auto">
                 <a class="nav-link" href="/">Home</a>
                 <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link" href="/activities">Activities</a>
+                {% if last_activity_id %}
+                <a class="nav-link" href="/activity/{{ last_activity_id }}">
+                    Last Activity
+                </a>
+                {% endif %}
                 <a class="nav-link" href="/log">Logs</a>
             </div>
     

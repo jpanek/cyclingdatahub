@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-0">Activity History</h3>
+            <p class="text-muted">Showing activities since {{ since_date }}</p>
+        </div>
+        <a href="/dashboard" class="btn btn-outline-primary">View Dashboard</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Distance</th>
+                        <th>Duration</th>
+                        <th>Elevation</th>
+                        <th>Avg Power</th>
+                        <th>Avg HR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in activities %}
+                    <tr style="cursor: pointer;" onclick="window.location='/activity/{{ act.strava_id }}'">
+                        <td class="text-nowrap">{{ act.start_date_local.strftime('%d %b %Y') }}</td>
+                        <td class="fw-bold">{{ act.name }}</td>
+                        <td>
+                            <span class="badge rounded-pill bg-light text-dark border">
+                                {{ act.type }}
+                            </span>
+                        </td>
+                        <td>{{ "%.1f"|format(act.distance_km | default(0, true)) }} km</td>
+                        <td>{{ "%.1f"|format(act.duration_hours | default(0, true)) }} h</td>
+                        <td>{{ act.total_elevation_gain | round | int }} m</td>
+                        <td>{{ (act.average_watts | default(0, true)) | round | int }} W</td>
+                        <td>{{ (act.average_heartrate | default(0, true)) | round | int }} bpm</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No activities found in the last 30 days.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

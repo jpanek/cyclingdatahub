@@ -23,6 +23,7 @@ def get_valid_access_token(conn, athlete_id):
     if row:
         access_token, refresh_token, expires_at = row
         if expires_at > datetime.now() + timedelta(minutes=5):
+            # We have fresh tokens, no need to hit Srava API at all
             # Return in the same format as the API response
             return {'access_token': access_token, 'refresh_token': refresh_token, 'expires_at': expires_at}
         
@@ -49,3 +50,46 @@ def fetch_activities_list(access_token, params):
     print(f"\t📊 Rate Limit: {res.headers.get('X-RateLimit-Limit')}")
     print(f"\t📈 Current Usage: {res.headers.get('X-ReadRateLimit-Usage')}")
     return res.json()
+
+def sync_activity_streams(conn, athlete_id, activity_id, force=False):
+    """
+    Orchestrates fetching streams from Strava and saving them to the DB.
+    """
+    from core.database import save_db_activity_stream
+    
+    # 0. Check if streams already exist locally
+    if not force:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM activity_streams WHERE strava_id = %s", (activity_id,))
+            if cur.fetchone():
+                # Stream already in DB, skip API call
+                print(f"\tStreams for activity {activity_id} already exists in activity_streams")
+                return True
+
+    # 1. Get valid token
+    tokens = get_valid_access_token(conn, athlete_id)
+    access_token = tokens['access_token']
+    
+    # 2. Define what we want to pull
+    # Note: Using 'velocity_smooth' as that is Strava's internal key for speed
+    stream_keys = "time,distance,velocity_smooth,heartrate,cadence,watts,temp,moving,altitude"
+    url = f"https://www.strava.com/api/v3/activities/{activity_id}/streams"
+    params = {
+        "keys": stream_keys,
+        "key_by_type": "true" 
+    }
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    try:
+        res = requests.get(url, headers=headers, params=params)
+        res.raise_for_status()
+        streams_data = res.json()
+
+        # 3. Save to Database
+        save_db_activity_stream(conn, activity_id, streams_data)
+        print(f"\tSaved streams for activity {activity_id}")
+        return True
+
+    except Exception as e:
+        print(f"\t❌ Failed to sync streams for {activity_id}: {e}")
+        return False

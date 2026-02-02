@@ -7,6 +7,7 @@ from core.database import (
     get_db_latest_timestamp_for_athlete, save_db_activities
 )
 from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list
+from core.processor import process_activity_metrics
 import sys
 
 def run_sync(athlete_id):
@@ -41,16 +42,43 @@ def run_sync(athlete_id):
             params = {"page": 1, "per_page": 200}
         else:
             after_ts = get_db_latest_timestamp_for_athlete(conn, athlete_id)
+            
+            #after_ts = after_ts - 345600 #look 12 hours behind
+
             readable = datetime.fromtimestamp(after_ts).strftime('%Y-%m-%d %H:%M:%S')
             print(f"\t🚀 Incremental sync: Activities after {readable}")
             params = {"after": after_ts, "per_page": 200}
 
         activities=None
-        #activities = fetch_activities_list(token, params)
+        activities = fetch_activities_list(token, params)
 
         if activities:
             save_db_activities(conn, athlete_id, activities)
             print(f"\t✅ Loaded {len(activities)} activities.")
+
+            # ------------------------ Fetch Activity streams (details) -----------------------
+            if not REFRESH_HISTORY:
+                print(f"\t🧬 Fetching high-res streams for {len(activities)} activities...")
+
+                from core.strava_api import sync_activity_streams
+
+                for activity in activities:
+                    strava_id = activity['id']
+                    activity_type = activity.get('type')
+                    try:
+                        # 1. Fetch the activity streams (details)
+                        sync_activity_streams(conn,athlete_id,strava_id)
+
+                        if activity_type in ['Ride','VirtualRide']:
+                            # 2. Trigger calculation of metrics:
+                            process_activity_metrics(strava_id, force=True)
+                            print(f"\t  ✨ Analyticsl metrics calculated for {strava_id}")
+                        else:
+                            print(f"\t  ⏩ Skipping analytics for non-cycling activity: {activity_type}")
+
+                    except Exception as stream_error:
+                        print(f"\t  ⚠️ Could not sync streams for {strava_id}: {stream_error}")
+            # ---------------------------------------------------------------------------------
         else:
             print("\t∅ No new activities to load.")
 

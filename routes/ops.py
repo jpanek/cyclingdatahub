@@ -9,17 +9,24 @@ from core.queries import SQL_GET_USER_NAME
 ops_bp = Blueprint('ops', __name__)
 
 @ops_bp.app_context_processor
-def inject_user():
+def inject_globals():
     """
-    Injects athlete ID and name into all templates.
-    Registered in ops.py to keep technical/global logic together.
+    Injects global variables into all templates.
     """
+    # Get User Name
     user_data = run_query(SQL_GET_USER_NAME, (MY_ATHLETE_ID,))
     name = user_data[0]['firstname'] if user_data else "Athlete"
     
+    # Get Last Activity ID
+    from core.queries import SQL_GET_LATEST_ACTIVITY_ID
+    last_act_data = run_query(SQL_GET_LATEST_ACTIVITY_ID, (MY_ATHLETE_ID,))
+    last_id = last_act_data[0]['strava_id'] if last_act_data else None
+    
     return dict(
         current_user_name=name,
-        current_athlete_id=MY_ATHLETE_ID
+        current_athlete_id=MY_ATHLETE_ID,
+        #current_athlete_id=None,
+        last_activity_id=last_id
     )
 
 @ops_bp.route('/sync-activities')

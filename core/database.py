@@ -7,6 +7,21 @@ from psycopg2.extras import RealDictCursor
 import pandas as pd
 from config import DB_NAME, DB_USER, DB_HOST, DB_PORT
 
+import numpy as np
+from psycopg2.extensions import register_adapter, AsIs
+
+def adapt_numpy_float64(numpy_float64):
+    return AsIs(numpy_float64)
+
+def adapt_numpy_int64(numpy_int64):
+    return AsIs(numpy_int64)
+
+# Register the adapters
+register_adapter(np.float64, adapt_numpy_float64)
+register_adapter(np.int64, adapt_numpy_int64)
+register_adapter(np.float32, adapt_numpy_float64)
+register_adapter(np.int32, adapt_numpy_int64)
+
 def get_db_connection():
     return psycopg2.connect(
         dbname=DB_NAME,
@@ -16,13 +31,22 @@ def get_db_connection():
     )
 
 def run_query(query, params=None):
-    """Generic executor that returns a list of dictionaries."""
+    """Generic executor that handles both SELECT (returns rows) and INSERT/UPDATE (commits)."""
     conn = get_db_connection()
     try:
-        # RealDictCursor allows you to access columns by name: row['firstname']
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params)
-            return cur.fetchall()
+            
+            # If the query returns data (like SELECT), fetch it
+            if cur.description is not None:
+                return cur.fetchall()
+            
+            # If it's a WRITE operation (INSERT/UPDATE), we must commit
+            conn.commit()
+            return None
+    except Exception as e:
+        conn.rollback()
+        raise e
     finally:
         conn.close()
 
@@ -136,4 +160,57 @@ def save_db_activities(conn, athlete_id, activities):
         })
     with conn.cursor() as cur:
         execute_batch(cur, insert_sql, data)
+    conn.commit()
+
+def save_db_activity_stream(conn, activity_id, streams_dict):
+    """
+    Inserts stream data into activity_streams table.
+    Uses native Postgres arrays for series and Jsonb for latlng.
+    """
+    from psycopg2.extras import Json
+    
+    def get_stream_data(type_key):
+        # Return the raw list for Postgres Array columns
+        if type_key in streams_dict and 'data' in streams_dict[type_key]:
+            return streams_dict[type_key]['data']
+        return None
+
+    sql = """
+        INSERT INTO activity_streams (
+            strava_id, time_series, distance_series, velocity_series, 
+            heartrate_series, cadence_series, watts_series, 
+            temp_series, moving_series, latlng_series, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT(strava_id) DO UPDATE SET
+            time_series=EXCLUDED.time_series,
+            distance_series=EXCLUDED.distance_series,
+            velocity_series=EXCLUDED.velocity_series,
+            heartrate_series=EXCLUDED.heartrate_series,
+            cadence_series=EXCLUDED.cadence_series,
+            watts_series=EXCLUDED.watts_series,
+            temp_series=EXCLUDED.temp_series,
+            moving_series=EXCLUDED.moving_series,
+            latlng_series=EXCLUDED.latlng_series,
+            updated_at=NOW();
+    """
+    
+    # latlng is JSONB in schema, so we use Json() wrapper if it exists
+    latlng_raw = get_stream_data('latlng')
+    latlng_value = Json(latlng_raw) if latlng_raw else None
+
+    params = (
+        activity_id,
+        get_stream_data('time'),
+        get_stream_data('distance'),
+        get_stream_data('velocity_smooth'),
+        get_stream_data('heartrate'),
+        get_stream_data('cadence'),
+        get_stream_data('watts'),
+        get_stream_data('temp'),
+        get_stream_data('moving'),
+        latlng_value
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
     conn.commit()

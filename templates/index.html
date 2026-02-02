@@ -1,34 +1,56 @@
 <!-- templates/index.html -->
+
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
 
-    <div class="p-5 mb-4 bg-light rounded-3 border">
-        <div class="container-fluid py-5">
-            <h1 class="display-5 fw-bold">Cycling Stats</h1>
-            <p class="col-md-8 fs-4">Dashboard for strava activities</p>
-            <a href="/dashboard" class="btn btn-primary btn-lg px-4" role="button">Open Dashboard</a>
+    <div class="mb-5">
+        <h1 class="fw-bold">Cycling Stats</h1>
+        <p class="text-muted">Welcome, {{ current_user_name }}.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
+                <h3>Dashboard</h3>
+                <p class="text-muted small">Overview of training metrics and monthly progress.</p>
+                <a href="/dashboard" class="btn btn-dark btn-sm px-4">Open</a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
+                <h3>Activity history</h3>
+                <p class="text-muted small">List of all recorded activities since last 30 days.</p>
+                <a href="/activities" class="btn btn-dark btn-sm px-4">View All</a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
+                <h3>Ride details</h3>
+                {% if last_activity_id %}
+                    <p class="text-muted small">Jump directly to your most recent activity details.</p>
+                    <a href="/activity/{{ last_activity_id }}" class="btn btn-dark btn-sm px-4">View Latest</a>
+                {% else %}
+                    <p class="text-muted small text-uppercase">No activities found.</p>
+                    <a href="#" class="btn btn-outline-secondary btn-sm disabled">N/A</a>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <div class="row align-items-md-stretch">
-        <div class="col-md-6">
-            <div class="h-100 p-4 bg-light border rounded-3">
-                <h2>Activity Sync</h2>
-                <p>Manually trigger a synchronization with Strava.</code>.</p>
-                <a href="{{ url_for('ops.sync_activities') }}" class="btn btn-outline-secondary btn-sm" role="button">
-                    Force Sync
-                </a>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="h-100 p-4 bg-light border rounded-3">
-                <h2>Dash Version</h2>
-                <p>Access the original Plotly Dash interface for advanced analytics and filtering.</p>
-                <a href="/dashboard_dash/" class="btn btn-outline-light btn-sm" role="button">Open Dash</a>
+    {% if not current_athlete_id %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="p-4 bg-light border rounded-3 text-center">
+                <p class="mb-3">Your account is not currently linked to Strava.</p>
+                <a href="/auth/login" class="btn btn-orange text-white" style="background-color: #FC6100;">Link Strava Account</a>
             </div>
         </div>
     </div>
+    {% endif %}
+
 </div>
 {% endblock %}
