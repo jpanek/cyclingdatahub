@@ -110,7 +110,7 @@ if __name__ == "__main__":
     if len(sys.argv)>1:
         athlete_id = int(sys.argv[1])
     else:
-        athlete_id = MY_ATHLETE_ID
+        athlete_id = 12689416
 
     run_sync(athlete_id)
 
