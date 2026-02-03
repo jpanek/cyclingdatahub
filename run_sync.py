@@ -1,7 +1,7 @@
 # run_sync.py
 
 from datetime import datetime
-from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, MY_ATHLETE_ID
+from config import REFRESH_USER_PROFILE, REFRESH_HISTORY
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
     get_db_latest_timestamp_for_athlete, save_db_activities
