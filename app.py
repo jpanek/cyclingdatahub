@@ -3,6 +3,7 @@ from flask import Flask
 from routes.main import main_bp
 from routes.ops import ops_bp
 from routes.api import api_bp
+from routes.auth import auth_bp
 import config
 
 app = Flask(__name__)
@@ -12,6 +13,7 @@ app.config['SECRET_KEY'] = config.SECRET_KEY
 # Register standard Flask routes from main.py
 app.register_blueprint(main_bp)
 app.register_blueprint(ops_bp)
+app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 
 # Initialize and attach Dash

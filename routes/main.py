@@ -2,11 +2,15 @@
 import os
 import csv, io
 import json
-from flask import Blueprint, render_template, request, Response, jsonify
+from flask import (
+    Blueprint, render_template, request, Response, jsonify,
+    session, redirect, url_for
+)
 from datetime import datetime, timedelta
-from config import MY_ATHLETE_ID, LOG_PATH
+from config import LOG_PATH
 from core.database import run_query
 from core.analysis import get_best_power_curve, get_performance_summary
+from routes.auth import login_required
 from core.queries import (
     SQL_GET_ACTIVITY_TYPES_BY_COUNT, 
     SQL_MONTHLY_ACTIVITY_METRICS,
@@ -20,12 +24,20 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
+    
+    if not session.get('athlete_id'):
+            return render_template('login.html')
+    
     return render_template('index.html')
 
 @main_bp.route('/dashboard')
+@login_required
 def dashboard():
-    chart_data = run_query(SQL_MONTHLY_ACTIVITY_METRICS, (MY_ATHLETE_ID,))
-    activity_types = run_query(SQL_GET_ACTIVITY_TYPES_BY_COUNT, (MY_ATHLETE_ID,))
+
+    athlete_id = session.get('athlete_id')
+
+    chart_data = run_query(SQL_MONTHLY_ACTIVITY_METRICS, (athlete_id,))
+    activity_types = run_query(SQL_GET_ACTIVITY_TYPES_BY_COUNT, (athlete_id,))
 
     return render_template('dashboard.html', 
                            chart_data=chart_data,
@@ -33,6 +45,7 @@ def dashboard():
     )
 
 @main_bp.route('/log')
+@login_required
 def view_log():
     content = "No logs found."
     if os.path.exists(LOG_PATH):
@@ -48,7 +61,9 @@ def view_log():
 
 @main_bp.route('/activity/', defaults={'strava_id': 17196834322})
 @main_bp.route('/activity/<int:strava_id>')
+@login_required
 def activity_detail(strava_id):
+    athlete_id = session.get('athlete_id')
     results = run_query(SQL_ACTIVITY_DETAILS, (strava_id,))
     activity = results[0] if results else None
     
@@ -70,15 +85,15 @@ def activity_detail(strava_id):
     }
 
     # Prev/Next logic stays the same
-    prev_res = run_query(SQL_PREVIOUS_ACTIVITY_ID, (MY_ATHLETE_ID, strava_id))
-    next_res = run_query(SQL_NEXT_ACTIVITY_ID, (MY_ATHLETE_ID, strava_id))
+    prev_res = run_query(SQL_PREVIOUS_ACTIVITY_ID, (athlete_id, strava_id))
+    next_res = run_query(SQL_NEXT_ACTIVITY_ID, (athlete_id, strava_id))
     prev_id = prev_res[0]['strava_id'] if prev_res else None
     next_id = next_res[0]['strava_id'] if next_res else None
 
     print(activity.keys())
 
     #get the best power curve:
-    best_curve = get_best_power_curve(MY_ATHLETE_ID, months=12)
+    best_curve = get_best_power_curve(athlete_id, months=12)
         
     return render_template(
         'activity_detail.html', 
@@ -89,13 +104,15 @@ def activity_detail(strava_id):
     )
 
 @main_bp.route('/performance')
+@login_required
 def performance_dashboard():
     """
     Renders the high-level performance metrics, including 
     power progression and yearly bests.
     """
+    athlete_id = session.get('athlete_id')
     # get_performance_summary returns the dict with 'progression' and 'yearly_bests'
-    data = get_performance_summary(MY_ATHLETE_ID)
+    data = get_performance_summary(athlete_id)
 
     return render_template(
         'performance.html',
@@ -105,7 +122,9 @@ def performance_dashboard():
     )
 
 @main_bp.route('/activities')
+@login_required
 def activities_list():
+    athlete_id = session.get('athlete_id')
     activity_type = request.args.get('type') or None
     date_from = request.args.get('from') or (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     date_to = request.args.get('to') or datetime.now().strftime('%Y-%m-%d')
@@ -113,7 +132,7 @@ def activities_list():
 
     # Fetch activities with filters
     activities = run_query(SQL_DAILY_ACTIVITIES_HISTORY, (
-        MY_ATHLETE_ID, 
+        athlete_id, 
         activity_type, activity_type, 
         date_from, 
         f"{date_to} 23:59:59"
@@ -127,7 +146,7 @@ def activities_list():
         return jsonify(activities)
 
     # Use your existing query for the dropdown, ordered by count
-    activity_types = run_query(SQL_GET_ACTIVITY_TYPES_BY_COUNT, (MY_ATHLETE_ID,))
+    activity_types = run_query(SQL_GET_ACTIVITY_TYPES_BY_COUNT, (athlete_id,))
     
     return render_template(
         'activities.html', 

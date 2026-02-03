@@ -2,7 +2,7 @@
 
 import requests
 from datetime import datetime, timedelta
-from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, STRAVA_TIMEOUT
+from config import APP_STRAVA_CLIENT_ID, APP_STRAVA_CLIENT_SECRET, USER_STRAVA_REFRESH_TOKEN, STRAVA_TIMEOUT
 
 def print_rate_limits(res):
     """Prints rate limits if available; stays silent if not."""
@@ -19,8 +19,8 @@ def print_rate_limits(res):
 
 def refresh_strava_tokens(refresh_token):
     payload = {
-        'client_id': STRAVA_CLIENT_ID,
-        'client_secret': STRAVA_CLIENT_SECRET,
+        'client_id': APP_STRAVA_CLIENT_ID,
+        'client_secret': APP_STRAVA_CLIENT_SECRET,
         'refresh_token': refresh_token,
         'grant_type': 'refresh_token'
     }
@@ -44,7 +44,7 @@ def get_valid_access_token(conn, athlete_id):
         tokens = refresh_strava_tokens(refresh_token)
     else:
         print("\t⚠️ User not in DB. Using config refresh token...")
-        tokens = refresh_strava_tokens(STRAVA_REFRESH_TOKEN)
+        tokens = refresh_strava_tokens(USER_STRAVA_REFRESH_TOKEN)
 
     save_db_user_tokens(conn, athlete_id, tokens)
     return tokens

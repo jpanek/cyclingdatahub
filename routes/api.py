@@ -1,17 +1,22 @@
 # # routes/api.py
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session
 from core.database import run_query
 from core.queries import SQL_DAILY_ACTIVITIES
-from config import MY_ATHLETE_ID # Assuming this is where your ID is stored
+from routes.auth import login_required
 
 api_bp = Blueprint('api', __name__)
 
 # Descriptive name: specifically for the monthly drill-down
 @api_bp.route('/activities/by-month/<month_year>')
+@login_required
 def get_monthly_activities(month_year):
     """Returns individual activities for a specific month (e.g., 'Feb 2026')"""
-    print(month_year)
-    data = run_query(SQL_DAILY_ACTIVITIES, (MY_ATHLETE_ID, month_year))
+    athlete_id = session.get('athlete_id')
+    
+    if not athlete_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = run_query(SQL_DAILY_ACTIVITIES, (athlete_id, month_year))
     return jsonify(data)
 
 # Reserved for your future idea:

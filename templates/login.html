@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="filter: blur(2px); pointer-events: none; user-select: none; opacity: 0.8;">
+    <div class="container py-5">
+        <div class="mb-5">
+            <h1 class="fw-bold">Cycling Stats</h1>
+            <p class="text-muted">Welcome to your hub.</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm">
+                    <h3 class="fw-bold text-muted">Dashboard</h3>
+                    <p class="text-muted small">Overview of training metrics.</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm">
+                    <h3 class="fw-bold text-muted">Performance</h3>
+                    <p class="text-muted small">Power profile and analysis.</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm">
+                    <h3 class="fw-bold text-muted">Activities</h3>
+                    <p class="text-muted small">Filter historical rides.</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm">
+                    <h3 class="fw-bold text-muted">Latest Ride</h3>
+                    <p class="text-muted small">Detailed activity analysis.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; justify-content: center; align-items: center; 
+            background: rgba(0, 0, 0, 0.15); z-index: 1050;
+            backdrop-filter: blur(1px);">
+    
+    <div class="card shadow-lg border-0" style="width: 90%; max-width: 400px; border-radius: 12px; overflow: hidden;">
+        <div class="card-body p-5 text-center">
+            <!--
+            <div class="mb-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/Strava_Logo.svg" 
+                     alt="Strava" style="height: 40px;">
+            </div>
+            -->
+
+            <h2 class="fw-bold mb-3">Cycling Stats</h2>
+            <p class="text-muted mb-4">Authorize with Strava to view your personalized cycling metrics.</p>
+            
+            <a href="{{ url_for('auth.force_login') }}" 
+               class="btn btn-lg w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center" 
+               style="background-color: #fc4c02; color: white; border: none; gap: 10px;">
+                <span>Connect with Strava</span>
+            </a>
+            
+            <!--
+            <div class="mt-4">
+                <small class="text-muted">Powered by <strong>Strava</strong></small>
+            </div>
+            -->
+        </div>
+    </div>
+</div>
+{% endblock %}
