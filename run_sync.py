@@ -65,7 +65,7 @@ def run_sync(athlete_id):
             save_db_activities(conn, athlete_id, activities)
             print(f"\t✅ Loaded {len(activities)} activities.")
 
-            activities_to_process = activities[:5] if is_new_user else activities
+            activities_to_process = activities[:10] if is_new_user else activities
 
             # ------------------------ Fetch Activity streams (details) -----------------------
             if not REFRESH_HISTORY:
