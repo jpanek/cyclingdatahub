@@ -170,7 +170,6 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
     from psycopg2.extras import Json
     
     def get_stream_data(type_key):
-        # Return the raw list for Postgres Array columns
         if type_key in streams_dict and 'data' in streams_dict[type_key]:
             return streams_dict[type_key]['data']
         return None
@@ -179,8 +178,8 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
         INSERT INTO activity_streams (
             strava_id, time_series, distance_series, velocity_series, 
             heartrate_series, cadence_series, watts_series, 
-            temp_series, moving_series, latlng_series, updated_at
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            temp_series, moving_series, latlng_series, altitude_series, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         ON CONFLICT(strava_id) DO UPDATE SET
             time_series=EXCLUDED.time_series,
             distance_series=EXCLUDED.distance_series,
@@ -191,10 +190,10 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
             temp_series=EXCLUDED.temp_series,
             moving_series=EXCLUDED.moving_series,
             latlng_series=EXCLUDED.latlng_series,
+            altitude_series=EXCLUDED.altitude_series,
             updated_at=NOW();
     """
     
-    # latlng is JSONB in schema, so we use Json() wrapper if it exists
     latlng_raw = get_stream_data('latlng')
     latlng_value = Json(latlng_raw) if latlng_raw else None
 
@@ -208,7 +207,8 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
         get_stream_data('watts'),
         get_stream_data('temp'),
         get_stream_data('moving'),
-        latlng_value
+        latlng_value,
+        get_stream_data('altitude') # This is the 11th param
     )
 
     with conn.cursor() as cur:

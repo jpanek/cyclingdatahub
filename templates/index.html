@@ -1,5 +1,3 @@
-<!-- templates/index.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
@@ -11,32 +9,52 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-md-4">
-            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
-                <h3>Dashboard</h3>
-                <p class="text-muted small">Overview of training metrics and monthly progress.</p>
-                <a href="/dashboard" class="btn btn-dark btn-sm px-4">Open</a>
+        <div class="col-md-6">
+            <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
+                <div class="card-body p-0">
+                    <h3 class="fw-bold">
+                        <a href="/dashboard" class="text-decoration-none text-dark stretched-link">Dashboard</a>
+                    </h3>
+                    <p class="text-muted small mb-0">Overview of training metrics and monthly progress.</p>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
-                <h3>Activity history</h3>
-                <p class="text-muted small">List of all recorded activities since last 30 days.</p>
-                <a href="/activities" class="btn btn-dark btn-sm px-4">View All</a>
+        <div class="col-md-6">
+            <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
+                <div class="card-body p-0">
+                    <h3 class="fw-bold">
+                        <a href="/performance" class="text-decoration-none text-dark stretched-link">Performance</a>
+                    </h3>
+                    <p class="text-muted small mb-0">Power profile, radar charts, and trend analysis.</p>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="h-100 p-4 bg-white border rounded-3 shadow-sm">
-                <h3>Ride details</h3>
-                {% if last_activity_id %}
-                    <p class="text-muted small">Jump directly to your most recent activity details.</p>
-                    <a href="/activity/{{ last_activity_id }}" class="btn btn-dark btn-sm px-4">View Latest</a>
-                {% else %}
-                    <p class="text-muted small text-uppercase">No activities found.</p>
-                    <a href="#" class="btn btn-outline-secondary btn-sm disabled">N/A</a>
-                {% endif %}
+        <div class="col-md-6">
+            <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
+                <div class="card-body p-0">
+                    <h3 class="fw-bold">
+                        <a href="/activities" class="text-decoration-none text-dark stretched-link">Activity History</a>
+                    </h3>
+                    <p class="text-muted small mb-0">Filter historical activities.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
+                <div class="card-body p-0">
+                    {% if last_activity_id %}
+                        <h3 class="fw-bold">
+                            <a href="/activity/{{ last_activity_id }}" class="text-decoration-none text-dark stretched-link">Latest Ride</a>
+                        </h3>
+                        <p class="text-muted small mb-0">Detailed look & analysis on activity level.</p>
+                    {% else %}
+                        <h3 class="fw-bold text-muted">Latest Activity</h3>
+                        <p class="text-muted small mb-0">No activities found.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -53,4 +71,16 @@
     {% endif %}
 
 </div>
+
+<style>
+    /* Subtle hover effect to indicate clickability */
+    .card-hover {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .card-hover:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        background-color: #fcfcfc!important;
+    }
+</style>
 {% endblock %}

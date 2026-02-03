@@ -8,6 +8,8 @@ from core.analysis import (
     calculate_aerobic_decoupling
 )
 import numpy as np
+from psycopg2.extras import Json
+
 
 def process_activity_metrics(strava_id, force=False):
     """
@@ -48,6 +50,14 @@ def process_activity_metrics(strava_id, force=False):
     ef = round(weighted_pwr / avg_hr, 2) if avg_hr > 0 else 0
     intensity_score = round(weighted_pwr / ride_ftp, 2) if ride_ftp and ride_ftp > 0 else 0
 
+    # 5. Calculate detailed power curve:
+    curve_durations = {str(d): d for d in [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600]}
+    detailed_curve = get_interval_bests(activity_data, intervals=curve_durations)
+
+    #power_curve_json = {k: v['power'] for k, v in detailed_curve.items() if v['power'] is not None}
+    power_curve_json = {k.replace('peak_power_', ''): v for k, v in detailed_curve.items() if 'peak_power_' in k and v is not None}
+
+
     # 4. Save to Database
     sql = """
     INSERT INTO activity_analytics (
@@ -55,8 +65,8 @@ def process_activity_metrics(strava_id, force=False):
         peak_5s, peak_1m, peak_5m, peak_20m, 
         peak_5s_hr, peak_1m_hr, peak_5m_hr, peak_20m_hr,
         weighted_avg_power, ride_ftp, max_vam, aerobic_decoupling,
-        variability_index, efficiency_factor, intensity_score, updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        variability_index, efficiency_factor, intensity_score, power_curve, updated_at
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         peak_5s = EXCLUDED.peak_5s,
         peak_1m = EXCLUDED.peak_1m,
@@ -73,6 +83,7 @@ def process_activity_metrics(strava_id, force=False):
         variability_index = EXCLUDED.variability_index,
         efficiency_factor = EXCLUDED.efficiency_factor,
         intensity_score = EXCLUDED.intensity_score,
+        power_curve = EXCLUDED.power_curve,
         updated_at = NOW();
     """
     
@@ -83,6 +94,7 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_hr_5s'), bests.get('peak_hr_1m'), 
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
         weighted_pwr, ride_ftp, vam, decoupling,
-        vi, ef, intensity_score
+        vi, ef, intensity_score,
+        Json(power_curve_json)
     ))
     return True

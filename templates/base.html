@@ -18,22 +18,27 @@
         <div class="container">
             <a class="navbar-brand" href="/">Cycling Stats</a>
             
-            <div class="navbar-nav me-auto">
-                <a class="nav-link" href="/">Home</a>
-                <a class="nav-link" href="/dashboard">Dashboard</a>
-                <a class="nav-link" href="/activities">Activities</a>
-                {% if last_activity_id %}
-                <a class="nav-link" href="/activity/{{ last_activity_id }}">
-                    Last Activity
-                </a>
-                {% endif %}
-                <a class="nav-link" href="/log">Logs</a>
-            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
     
-            <div class="navbar-nav ms-auto">
-                <span class="nav-link">
-                    <span class="text-white fw-bold">{{ current_user_name }}</span>
-                </span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                    <a class="nav-link" href="/performance">Performance</a>
+                    <a class="nav-link" href="/activities">Activities</a>
+                    {% if last_activity_id %}
+                    <a class="nav-link" href="/activity/{{ last_activity_id }}">Last Activity</a>
+                    {% endif %}
+                    <!--<a class="nav-link" href="/log">Logs</a>-->
+                </div>
+        
+                <div class="navbar-nav ms-auto">
+                    <span class="nav-link">
+                        <span class="text-white fw-bold">{{ current_user_name }}</span>
+                    </span>
+                </div>
             </div>
         </div>
     </nav>

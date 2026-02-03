@@ -3,23 +3,70 @@
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="mb-0">Activity History</h3>
-            <p class="text-muted">Showing activities since {{ since_date }}</p>
+            <h4 class="mb-0 fw-bold">Activity History</h4>
+            <p class="text-muted small mb-0">
+                Showing <strong>{{ activities|length }}</strong> activities
+            </p>
         </div>
-        <a href="/dashboard" class="btn btn-outline-primary">View Dashboard</a>
+        <div class="btn-group shadow-sm">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="{{ request.full_path }}{% if '?' in request.full_path %}&{% else %}?{% endif %}export=csv">
+                        Download CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ request.full_path }}{% if '?' in request.full_path %}&{% else %}?{% endif %}export=json">
+                        Download JSON
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4 border-0 bg-light">
+        <div class="card-body">
+            <form method="GET" action="/activities" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Activity Type</label>
+                    <select name="type" class="form-select border-0 shadow-sm">
+                        <option value="">All Types</option>
+                        {% for row in activity_types %}
+                        <option value="{{ row.type }}" {% if row.type == current_type %}selected{% endif %}>
+                            {{ row.type }} ({{ row.activity_count }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">From</label>
+                    <input type="date" name="from" class="form-control border-0 shadow-sm" value="{{ since_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">To</label>
+                    <input type="date" name="to" class="form-control border-0 shadow-sm" value="{{ until_date }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1 shadow-sm">Filter</button>
+                    <a href="/activities" class="btn btn-white border shadow-sm text-decoration-none text-dark">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Date</th>
+                        <th class="ps-3">Date</th>
                         <th>Name</th>
                         <th>Type</th>
                         <th>Distance</th>
                         <th>Duration</th>
-                        <th>Elevation</th>
                         <th>Avg Power</th>
                         <th>Avg HR</th>
                     </tr>
@@ -27,22 +74,35 @@
                 <tbody>
                     {% for act in activities %}
                     <tr style="cursor: pointer;" onclick="window.location='/activity/{{ act.strava_id }}'">
-                        <td class="text-nowrap">{{ act.start_date_local.strftime('%d %b %Y') }}</td>
-                        <td class="fw-bold">{{ act.name }}</td>
+                        <td class="ps-3 text-nowrap">
+                            {{ act.start_datetime.strftime('%d %b %Y') if act.start_datetime else '-' }}
+                        </td>
+                        <td class="fw-semibold text-truncate" style="max-width: 250px;" title="{{ act.name }}">
+                            {{ act.name }}
+                        </td>
                         <td>
-                            <span class="badge rounded-pill bg-light text-dark border">
+                            <span class="badge rounded-pill bg-white text-dark border fw-normal">
                                 {{ act.type }}
                             </span>
                         </td>
-                        <td>{{ "%.1f"|format(act.distance_km | default(0, true)) }} km</td>
-                        <td>{{ "%.1f"|format(act.duration_hours | default(0, true)) }} h</td>
-                        <td>{{ act.total_elevation_gain | round | int }} m</td>
-                        <td>{{ (act.average_watts | default(0, true)) | round | int }} W</td>
-                        <td>{{ (act.average_heartrate | default(0, true)) | round | int }} bpm</td>
+                        <td>{{ "{:,.1f}".format(act.distance_km | default(0)) }} km</td>
+                        <td>{{ "{:.1f}".format(act.duration_hours | default(0)) }} h</td>
+                        <td>
+                            {{ (act.average_watts | default(0)) | int }} W
+                            <!--
+                            {% if act.weighted_avg_power %}
+                            <small class="text-muted ms-1" title="Weighted Average Power">(NP: {{ act.weighted_avg_power | int }}W)</small>
+                            {% endif %}
+                            -->
+                        </td>
+                        <td>{{ (act.average_heartrate | default(0)) | int }} bpm</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">No activities found in the last 30 days.</td>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-search d-block mb-2 fs-4"></i>
+                            No activities found for the selected criteria.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

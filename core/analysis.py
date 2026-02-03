@@ -1,6 +1,8 @@
 # core/analysis.py
 
 import numpy as np
+from core.database import run_query
+from datetime import datetime, timedelta
 
 def calculate_weighted_power(watts_series):
     """Calculates xPower / Normalized Power equivalent."""
@@ -11,11 +13,13 @@ def calculate_weighted_power(watts_series):
     weighted_pw = np.mean(rolling_avg ** 4) ** 0.25
     return int(weighted_pw)
 
-def get_interval_bests(activity_data):
+def get_interval_bests(activity_data, intervals=None):
     """
     Returns peak power and the corresponding average HR during those specific power windows.
     """
-    intervals = {'5s': 5, '1m': 60, '5m': 300, '20m': 1200}
+    if intervals is None:
+        intervals = {'5s': 5, '1m': 60, '5m': 300, '20m': 1200}
+
     watts = np.array(activity_data.get('watts_series') or [])
     hr = np.array(activity_data.get('heartrate_series') or [])
     
@@ -76,3 +80,79 @@ def calculate_aerobic_decoupling(watts_series, hr_series):
     if ef1 == 0: return 0
     decoupling = ((ef1 - ef2) / ef1) * 100
     return round(decoupling, 2)
+
+def get_best_power_curve(athlete_id, months=12):
+    """
+    Computes the 'Best' envelope based on a rolling number of months history.
+    Default is 12 months.
+    """
+    # Calculate the date 'X' months ago
+    # Using roughly 30 days per month for the SQL filter
+    since_date = (datetime.now() - timedelta(days=months * 30)).strftime('%Y-%m-%d')
+
+    sql = """
+        SELECT an.power_curve 
+        FROM activity_analytics an 
+        JOIN activities a ON an.strava_id = a.strava_id 
+        WHERE a.athlete_id = %s 
+        AND a.start_date_local >= %s
+    """
+    results = run_query(sql, (athlete_id, since_date))
+    
+    if not results:
+        return {}
+
+    overall_best = {}
+    for row in results:
+        curve = row.get('power_curve') or {}
+        for duration_str, power in curve.items():
+            d = int(duration_str)
+            if power is not None:
+                if d not in overall_best or power > overall_best[d]:
+                    overall_best[d] = power
+                
+    return overall_best
+
+def get_performance_summary(athlete_id):
+    """
+    Fetches progression data for all main intervals and yearly peaks.
+    """
+    from core.queries import SQL_POWER_PROGRESSION, SQL_YEARLY_PEAKS
+    
+    intervals = {
+        '5s': 'peak_5s',
+        '1m': 'peak_1m',
+        '5m': 'peak_5m',
+        '20m': 'peak_20m'
+    }
+    
+    all_progression = {}
+    all_time_peaks = {} # Store the absolute best for normalization
+    
+    for label, col in intervals.items():
+        query = SQL_POWER_PROGRESSION.replace("{col}", col)
+        raw_data = run_query(query, (athlete_id,))
+        
+        current_max = 0
+        processed = []
+        for row in raw_data:
+            if row['power'] > current_max:
+                current_max = row['power']
+            
+            processed.append({
+                'x': row['date'].isoformat(),
+                'y': row['power'],
+                'record': current_max,
+                'name': row['activity_name'],
+                'id': str(row['strava_id'])
+            })
+        all_progression[label] = processed
+        all_time_peaks[label] = current_max # The last current_max is the all-time best
+
+    yearly_bests = run_query(SQL_YEARLY_PEAKS, (athlete_id,))
+        
+    return {
+        'progression': all_progression,
+        'yearly_bests': yearly_bests,
+        'all_time_peaks': all_time_peaks # New key
+    }

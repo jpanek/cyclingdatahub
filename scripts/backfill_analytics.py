@@ -23,8 +23,10 @@ def sync_local_analytics():
         JOIN activities act ON s.strava_id = act.strava_id
         LEFT JOIN activity_analytics a ON s.strava_id = a.strava_id
         WHERE 0=0
-        --and a.strava_id IS NULL
-        AND act.type IN ('Ride', 'VirtualRide');
+        and a.strava_id IS NULL
+        AND act.type IN ('Ride', 'VirtualRide')
+        --and s.strava_id = 17196834322
+        order by act.start_date_local 
     """)
 
     if not missing_analytics:
@@ -37,6 +39,9 @@ def sync_local_analytics():
     processed = 0
     for row in missing_analytics:
         sid = row['strava_id']
+        
+        #success = process_activity_metrics(sid, force=True)
+
         try:
             # This calls the function in core/processor.py we wrote earlier
             success = process_activity_metrics(sid, force=True)

@@ -27,6 +27,7 @@
                 </button>
             {% endif %}
         </div>
+        
     </div>
 
     <!-- Titles -->
@@ -71,82 +72,119 @@
         </div>
     </div>
 
-    <!-- Chart -->
+    <!-- Chart - ride detail -->
     <div class="card shadow-sm p-3">
         <canvas id="rideChart" style="width: 100%; height: 500px;"></canvas>
     </div>
 
 
-<!-- Calulated power numbers -->
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white fw-bold">Power Metrics</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="text-muted d-block small">Weighted Avg Power</label>
-                    <span class="fs-3 fw-bold text-primary">{{ activity.weighted_avg_power or 0 }} W</span>
+    <!-- Calulated power numbers -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Power Metrics</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted d-block small">Weighted Avg Power</label>
+                        <span class="fs-3 fw-bold text-primary">{{ activity.weighted_avg_power or 0 }} W</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="text-muted d-block small">Variability (VI)</label>
+                            <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.variability_index or 1.0) }}</span>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="text-muted d-block small">Intensity (IF)</label>
+                            <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.intensity_score or 0.0) }}</span>
+                        </div>
+                        <div class="col-12">
+                            <label class="text-muted d-block small">Aerobic Decoupling</label>
+                            <span class="fs-5 fw-bold {% if activity.aerobic_decoupling and activity.aerobic_decoupling > 5 %}text-danger{% else %}text-success{% endif %}">
+                                {{ "%.1f"|format(activity.aerobic_decoupling or 0.0) }}%
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <label class="text-muted d-block small">Variability (VI)</label>
-                        <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.variability_index or 1.0) }}</span>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <label class="text-muted d-block small">Intensity (IF)</label>
-                        <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.intensity_score or 0.0) }}</span>
-                    </div>
-                    <div class="col-12">
-                        <label class="text-muted d-block small">Aerobic Decoupling</label>
-                        <span class="fs-5 fw-bold {% if activity.aerobic_decoupling and activity.aerobic_decoupling > 5 %}text-danger{% else %}text-success{% endif %}">
-                            {{ "%.1f"|format(activity.aerobic_decoupling or 0.0) }}%
-                        </span>
-                    </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Best efforts (Interval Averages)</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Interval</th>
+                                <th>Avg Power</th>
+                                <th>Avg HR (at Peak Power)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for label in ['5s', '1m', '5m', '20m'] %}
+                            <tr>
+                                <td class="ps-3 fw-semibold">{{ '5 Seconds' if label == '5s' else label.replace('m', ' Minute').replace('20 Minute', '20 Minutes') }}</td>
+                                <td class="fw-bold">{{ activity.interval_bests[label]['power'] or '-' }} W</td>
+                                <td class="text-danger">{{ activity.interval_bests[label]['hr'] or '-' }} bpm</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-8">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white fw-bold">Best efforts (Interval Averages)</div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-3">Interval</th>
-                            <th>Avg Power</th>
-                            <th>Avg HR (at Peak Power)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for label in ['5s', '1m', '5m', '20m'] %}
-                        <tr>
-                            <td class="ps-3 fw-semibold">{{ '5 Seconds' if label == '5s' else label.replace('m', ' Minute').replace('20 Minute', '20 Minutes') }}</td>
-                            <td class="fw-bold">{{ activity.interval_bests[label]['power'] or '-' }} W</td>
-                            <td class="text-danger">{{ activity.interval_bests[label]['hr'] or '-' }} bpm</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <!-- Chart: Power Curve -->
+    <div class="card shadow-sm p-3 mt-4">
+        <div class="card-header bg-white border-0 ps-0">
+            <h5 class="mb-0 fw-bold">Power Curve</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="powerCurveChart" style="width: 100%; height: 350px;"></canvas>
         </div>
     </div>
-</div>
+
+    <!-- Map of polyline -->
+    <div class="card shadow-sm p-3 mt-4 mb-4">
+        <div class="card-header bg-white border-0 ps-0">
+            <h5 class="mb-0 fw-bold">Route Map</h5>
+        </div>
+        <div class="card-body p-0">
+            <div id="activityMap" style="height: 400px; width: 100%; border-radius: 8px;"></div>
+        </div>
+    </div>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-polyline/1.1.1/polyline.js"></script>
+
+<!-- Ride chart: -->
 <script>
     const ctx = document.getElementById('rideChart').getContext('2d');
-    
-    // Injecting the streams from Flask/Python to JS
-    const timeData = {{ activity.time_series | tojson }};
-    const powerData = {{ activity.watts_series | tojson }};
-    const hrData = {{ activity.heartrate_series | tojson }};
-    const cadenceData = {{ activity.cadence_series |tojson }}
 
-    // Helper to convert seconds to HH:MM:SS for the X-axis
+    // Simple Moving Average (SMA) helper
+    const smoothData = (data, windowSize) => {
+        if (!data || data.length === 0) return [];
+        return data.map((val, index, arr) => {
+            const start = Math.max(0, index - windowSize);
+            const end = index + 1;
+            const subset = arr.slice(start, end);
+            const sum = subset.reduce((a, b) => a + b, 0);
+            return sum / subset.length;
+        });
+    };
+    
+    // Injecting the streams
+    const timeData = {{ activity.time_series | tojson }};
+    const powerData = smoothData({{ activity.watts_series | tojson }}, 30);
+    const hrData = smoothData({{ activity.heartrate_series | tojson }},3);
+    const cadenceData = smoothData({{ activity.cadence_series | tojson }},3);
+    const altitudeData = {{ activity.altitude_series | tojson }}; // New stream
+
     const formatTime = (seconds) => {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -160,12 +198,23 @@
             labels: timeData.map(formatTime),
             datasets: [
                 {
+                    label: 'Elevation (m)',
+                    data: altitudeData,
+                    borderColor: 'rgba(200, 200, 200, 0.5)', // Subtle gray border
+                    backgroundColor: 'rgba(200, 200, 200, 0.2)', // Non-intrusive gray fill
+                    borderWidth: 1,
+                    fill: true,
+                    yAxisID: 'yAlt',
+                    pointRadius: 0,
+                    z: -1 // Keep it behind other lines
+                },
+                {
                     label: 'Power (W)',
                     data: powerData,
                     borderColor: 'rgba(54, 162, 235, 1)',
                     backgroundColor: 'rgba(54, 162, 235, 0.1)',
                     borderWidth: 1,
-                    fill: true,
+                    fill: false, // Turned off fill here so it doesn't clash with altitude
                     yAxisID: 'yPower',
                     pointRadius: 0
                 },
@@ -181,10 +230,10 @@
                 {
                     label: 'Cadence (RPM)',
                     data: cadenceData,
-                    borderColor: 'rgba(75, 192, 192, 1)', // Teal/Green color
+                    borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1.5,
                     fill: false,
-                    yAxisID: 'yHR', // We can share the HR axis or create a new 'yCadence'
+                    yAxisID: 'yHR', 
                     pointRadius: 0,
                     tension: 0.1
                 }
@@ -207,10 +256,141 @@
                     display: true,
                     position: 'right',
                     grid: { drawOnChartArea: false },
-                    title: { display: true, text: 'BPM' }
+                    title: { display: true, text: 'BPM / RPM' }
+                },
+                yAlt: {
+                    type: 'linear',
+                    display: false, // Hide the axis itself to keep it clean
+                    position: 'right',
+                    grid: { drawOnChartArea: false }, // Don't clutter with more lines
+                    // Optional: Offset the altitude so it sits at the bottom
+                    // Suggested: set max to 3x the actual max altitude 
+                    // to keep the "mountains" in the bottom third
                 }
             }
         }
     });
+</script>
+
+
+<script>
+    // Power curve chart:
+    const curveCtx = document.getElementById('powerCurveChart').getContext('2d');
+    
+    const rawCurve = {{ activity.power_curve | tojson if activity.power_curve else '{}' }};
+    const bestCurveRaw = {{ best_power | tojson if best_power else '{}' }};
+
+    // 1. Map to {x, y} objects
+    const labels = Object.keys(rawCurve).map(Number).sort((a, b) => a - b);
+    const curveValues = labels.map(k => ({ x: k, y: rawCurve[k] }));
+    
+    // For the best curve, we also want to include points that might not be in "this ride" 
+    // but are in the 12m history to keep the line smooth
+    const bestLabels = Object.keys(bestCurveRaw).map(Number).sort((a, b) => a - b);
+    const bestValues = bestLabels.map(k => ({ x: k, y: bestCurveRaw[k] }));
+
+    new Chart(curveCtx, {
+        type: 'line',
+        data: {
+            // REMOVED 'labels: labels' here to let x/y coordinates handle it
+            datasets: [
+                {
+                    label: 'This Ride',
+                    data: curveValues,
+                    borderColor: 'rgba(54, 162, 235, 1)', // Same Blue as your ride chart
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    zIndex: 2
+                },
+                {
+                    label: 'YTD Best',
+                    data: bestValues,
+                    borderColor: 'rgba(150, 150, 150, 0.8)', // Stronger Gray
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    zIndex: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            // Add these interaction settings:
+            interaction: {
+                mode: 'index',     // Highlights both lines for the same X-value
+                //intersect: false,  // Don't require the mouse to touch the line exactly
+            },
+            plugins: {
+                tooltip: {
+                    enabled: true,
+                    position: 'nearest',
+                    callbacks: {
+                        title: (items) => {
+                            const sec = Math.round(items[0].parsed.x);
+                            if (sec < 60) return `${sec}s`;
+                            if (sec < 3600) return `${Math.floor(sec/60)}m ${sec%60}s`;
+                            return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;
+                        },
+                        label: (item) => ` ${item.dataset.label}: ${item.parsed.y} Watts`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'logarithmic',
+                    min: 1,
+                    max: 3600,
+                    title: { display: true, text: 'Duration' },
+                    ticks: {
+                        autoSkip: false,
+                        callback: function(value) {
+                            const milestones = {1: '1s', 5: '5s', 10: '10s', 30: '30s', 60: '1m', 300: '5m', 600: '10m', 1200: '20m', 1800: '30m', 3600: '1h'};
+                            return milestones[value] || '';
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Watts' }
+                }
+            }
+        }
+    });
+</script>
+
+<script>
+    // Polyline map of the activity:
+    //const encodedPath = "{{ activity.map_polyline }}";
+    const encodedPath = {{ activity.map_polyline | tojson | safe }};
+
+    //console.log("Debug map plotting");
+    //console.log(encodedPath);
+
+    if (encodedPath && encodedPath !== 'None') {
+    const map = L.map('activityMap');
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Use the Mapbox polyline library to decode
+    const coords = polyline.decode(encodedPath);
+
+    const polylineLayer = L.polyline(coords, {
+        color: '#495057',
+        weight: 4,
+        opacity: 0.9
+    }).addTo(map);
+
+    map.fitBounds(polylineLayer.getBounds());
+    }
+    else {
+        document.getElementById('activityMap').innerHTML = "<p style='padding: 20px; text-align: center; background: #eee;'>No GPS data available for this activity.</p>";
+    }
 </script>
 {% endblock %}

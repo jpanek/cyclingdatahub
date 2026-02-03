@@ -2,7 +2,20 @@
 
 import requests
 from datetime import datetime, timedelta
-from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
+from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, STRAVA_TIMEOUT
+
+def print_rate_limits(res):
+    """Prints rate limits if available; stays silent if not."""
+    limit = res.headers.get('X-RateLimit-Limit')
+    usage = res.headers.get('X-RateLimit-Usage')
+    
+    if limit and usage:
+        try:
+            l_15m, l_1d = limit.split(',')
+            u_15m, u_1d = usage.split(',')
+            print(f"\t📊 Rate limits: (15m) {u_15m}/{l_15m}, (1d) {u_1d}/{l_1d}")
+        except (ValueError, IndexError):
+            pass
 
 def refresh_strava_tokens(refresh_token):
     payload = {
@@ -44,11 +57,10 @@ def fetch_athlete_data(access_token):
 
 def fetch_activities_list(access_token, params):
     headers = {"Authorization": f"Bearer {access_token}"}
-    res = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers, params=params)
+    res = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers, params=params, timeout=STRAVA_TIMEOUT)
     res.raise_for_status()
     
-    print(f"\t📊 Rate Limit: {res.headers.get('X-RateLimit-Limit')}")
-    print(f"\t📈 Current Usage: {res.headers.get('X-ReadRateLimit-Usage')}")
+    print_rate_limits(res)
     return res.json()
 
 def sync_activity_streams(conn, athlete_id, activity_id, force=False):
@@ -81,8 +93,11 @@ def sync_activity_streams(conn, athlete_id, activity_id, force=False):
     headers = {"Authorization": f"Bearer {access_token}"}
 
     try:
-        res = requests.get(url, headers=headers, params=params)
+        res = requests.get(url, headers=headers, params=params, timeout=STRAVA_TIMEOUT)
         res.raise_for_status()
+
+        print_rate_limits(res)
+
         streams_data = res.json()
 
         # 3. Save to Database
