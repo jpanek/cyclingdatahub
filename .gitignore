@@ -19,3 +19,6 @@ config.py
 
 # System
 .DS_Store
+
+#dumps
+*.dump

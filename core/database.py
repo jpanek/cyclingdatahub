@@ -5,7 +5,12 @@ from psycopg2.extras import execute_batch, Json
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
 import pandas as pd
-from config import DB_NAME, DB_USER, DB_HOST, DB_PORT
+
+try:
+    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, DB_PASS
+except ImportError:
+    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT
+    DB_PASS = None
 
 import numpy as np
 from psycopg2.extensions import register_adapter, AsIs
@@ -26,6 +31,7 @@ def get_db_connection():
     return psycopg2.connect(
         dbname=DB_NAME,
         user=DB_USER,
+        password=DB_PASS,
         host=DB_HOST,
         port=DB_PORT
     )
@@ -196,6 +202,8 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
     
     latlng_raw = get_stream_data('latlng')
     latlng_value = Json(latlng_raw) if latlng_raw else None
+
+
 
     params = (
         activity_id,
