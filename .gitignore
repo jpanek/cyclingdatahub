@@ -22,3 +22,6 @@ config.py
 
 #dumps
 *.dump
+
+#old folders:
+archive/
