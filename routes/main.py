@@ -44,21 +44,6 @@ def dashboard():
                            activity_types=activity_types
     )
 
-@main_bp.route('/log')
-@login_required
-def view_log():
-    content = "No logs found."
-    if os.path.exists(LOG_PATH):
-        try:
-            with open(LOG_PATH, 'r') as f:
-                lines = f.readlines()
-                # Get last 100 lines and reverse so newest is on top
-                content = "".join(reversed(lines[-100:]))
-        except Exception as e:
-            content = f"Error reading log: {str(e)}"
-    
-    return render_template('log_viewer.html', content=content)
-
 @main_bp.route('/activity/', defaults={'strava_id': 17196834322})
 @main_bp.route('/activity/<int:strava_id>')
 @login_required

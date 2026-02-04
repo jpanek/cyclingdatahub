@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}System Logs - Cycling Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom">
+                <h5 class="mb-0 text-dark">System Logs <small class="text-muted" style="font-size: 0.7rem;">(Latest first)</small></h5>
+                
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('ops.sync_activities') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-repeat me-1" viewBox="0 0 16 16">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                        Run Sync
+                    </a>
+
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('ops.show_logs', type='sync') }}" 
+                           class="btn btn-sm {{ 'btn-secondary' if log_type == 'sync' else 'btn-outline-secondary' }}">
+                           Sync Log
+                        </a>
+                        <a href="{{ url_for('ops.show_logs', type='crawler') }}" 
+                           class="btn btn-sm {{ 'btn-secondary' if log_type == 'crawler' else 'btn-outline-secondary' }}">
+                           Crawler Log
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <pre id="log-viewer" class="m-0 p-4 bg-white text-dark rounded-bottom" 
+                     style="height: 65vh; overflow-y: auto; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85rem; line-height: 1.5; border-top: 1px solid #eee;">{{ content }}</pre>
+            </div>
+        </div>
+        </div>
+</div>
+{% endblock %}

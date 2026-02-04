@@ -1,9 +1,10 @@
 # routes/ops.py
 import subprocess
 import os
-from flask import Blueprint, redirect, url_for, flash, request, session # added session
+from flask import Blueprint, redirect, url_for, flash, request, session, current_app, render_template
 from config import LOG_PATH, BASE_PATH
 from core.database import run_query
+from routes.auth import login_required
 
 ops_bp = Blueprint('ops', __name__)
 
@@ -39,8 +40,8 @@ def inject_globals():
     )
 
 @ops_bp.route('/sync-activities')
+@login_required # Added this for safety
 def sync_activities():
-    # Use session instead of hardcoded ID
     athlete_id = session.get('athlete_id')
     if not athlete_id:
         flash("You must be logged in to sync.", "danger")
@@ -61,4 +62,30 @@ def sync_activities():
     except Exception as e:
         flash(f"Process failed to start: {str(e)}", "danger")
     
-    return redirect(request.referrer or url_for('main.index'))
+    # Force redirect back to the logs page, specifically the sync log view
+    return redirect(url_for('ops.show_logs', type='sync'))
+
+@ops_bp.route('/log')
+@login_required
+def show_logs():
+    # Define allowed logs for security
+    log_map = {
+        'sync': 'run_sync_log.log',
+        'crawler': 'crawler_log.log'
+    }
+    
+    log_type = request.args.get('type', 'sync')
+    filename = log_map.get(log_type, 'run_sync_log.log')
+    
+    log_path = os.path.join(current_app.root_path, 'logs', filename)
+    
+    content = ""
+    if os.path.exists(log_path):
+        with open(log_path, 'r') as f:
+            lines = f.readlines()
+            # Take last 200 lines and reverse them so newest is at the top
+            content = "".join(reversed(lines[-200:]))
+    else:
+        content = f"Log file {filename} not found."
+
+    return render_template('logs.html', content=content, log_type=log_type)
