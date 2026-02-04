@@ -6,26 +6,23 @@
 import time, sys, os
 from datetime import datetime, timedelta
 from psycopg2.extras import RealDictCursor
-from core.database import get_db_connection
+from core.database import get_db_connection, get_db_all_athletes, run_query
 from core.strava_api import get_valid_access_token, sync_activity_streams
 from core.processor import process_activity_metrics
+from core.queries import SQL_CRAWLER_BACKLOG
 
 def crawl_backfill(batch_size_per_user=3, sleep_time=2):
     """
     Cycles through ALL users in the DB and backfills a few historical 
     cycling activities for each, respecting a 1-year hard stop.
     """
-    conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     # 1. Hard Stop: Only process rides from the last 365 days
     one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d %H:%M:%S')
-    print(one_year_ago)
 
     try:
         # 2. Get all athletes currently in our system
-        cursor.execute("SELECT athlete_id, firstname FROM users")
-        athletes = cursor.fetchall()
+        athletes = get_db_all_athletes()
 
         if not athletes:
             print("∅ No users found in database.")
@@ -36,21 +33,8 @@ def crawl_backfill(batch_size_per_user=3, sleep_time=2):
         for athlete in athletes:
             a_id = athlete['athlete_id']
             name = athlete['firstname']
-            
-            # 3. Find missing streams for THIS specific athlete
-            query = """
-                SELECT a.strava_id, a.type, a.start_date_local
-                FROM activities a
-                LEFT JOIN activity_streams s ON a.strava_id = s.strava_id
-                WHERE a.athlete_id = %s 
-                  --AND a.type IN ('Ride', 'VirtualRide')
-                  AND a.start_date_local >= %s
-                  AND s.strava_id IS NULL
-                ORDER BY a.start_date_local DESC
-                LIMIT %s
-            """
-            cursor.execute(query, (a_id, one_year_ago, batch_size_per_user))
-            to_process = cursor.fetchall()
+
+            to_process = run_query(SQL_CRAWLER_BACKLOG, (a_id, one_year_ago, batch_size_per_user))
 
             if not to_process:
                 print(f"  ✅ {name} ({a_id}): Fully caught up.")

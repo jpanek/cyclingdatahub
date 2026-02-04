@@ -56,6 +56,11 @@ def run_query(query, params=None):
     finally:
         conn.close()
 
+def get_db_all_athletes():
+    conn = get_db_connection()
+    data = run_query("select athlete_id, firstname from users")
+    return data
+
 def run_query_pd(query, params=None):
     """Generic executor that recycles get_db_connection and returns a DataFrame."""
     conn = get_db_connection()

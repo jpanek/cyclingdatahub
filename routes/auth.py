@@ -7,6 +7,8 @@ import requests
 from core.database import get_db_connection, save_db_user_profile
 import json, os
 from datetime import datetime
+import threading
+from run_sync import run_sync
 
 """
 strava responded with:
@@ -92,14 +94,28 @@ def strava_callback():
     # Strava returns { "access_token": "...", "athlete": { "id": 123, "firstname": "..." }, ... }
     athlete_data = token_data.get('athlete')
     athlete_id = athlete_data.get('id')
-    name = f"{athlete_data.get('firstname')} {athlete_data.get('lastname')}"
+    firstname = athlete_data.get('firstname', 'Athlete')
 
     # 3. Save tokens and profile to DB using your existing function
     conn = get_db_connection()
     try:
-        save_db_user_profile(conn, athlete_data, token_data)
+        is_new_user = save_db_user_profile(conn, athlete_data, token_data)
         session['athlete_id'] = athlete_id
-        print(f"[{datetime.now()}] SUCCESS: Authenticated user {name} ({athlete_id}). Session set.")
+
+        # ------------ NEW USER TIRGGER ACTIVITY LOAD -------------------
+        if is_new_user:
+            print(f"[{datetime.now()}] 🚀 NEW USER: Starting background sync for {firstname} ({athlete_id})...", flush=True)
+            sync_thread = threading.Thread(
+                target=run_sync, 
+                args=(athlete_id, firstname),
+                daemon=True # This ensures the thread doesn't block the app from exiting
+            )
+            sync_thread.start()
+            
+        else:
+            print(f"[{datetime.now()}] 🔄 RETURNING USER: {firstname} ({athlete_id}) logged in.", flush=True)
+
+
     except Exception as e:
         print(f"[{datetime.now()}] CRITICAL: Failed to save user {athlete_id} to DB: {e}")
         return "Internal Database Error", 500

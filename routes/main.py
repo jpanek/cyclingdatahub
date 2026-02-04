@@ -24,11 +24,15 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    
-    if not session.get('athlete_id'):
+    athlete_id = session.get('athlete_id')
+    if not athlete_id:
             return render_template('login.html')
     
-    return render_template('index.html')
+    res = run_query("SELECT COUNT(*) as count FROM activities WHERE athlete_id = %s", (athlete_id,))
+    activity_count = res[0]['count'] if res else 0
+    #activity_count = 0
+    return render_template('index.html', syncing=(activity_count == 0))
+
 
 @main_bp.route('/dashboard')
 @login_required

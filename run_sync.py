@@ -4,16 +4,19 @@ from datetime import datetime
 from config import REFRESH_USER_PROFILE, REFRESH_HISTORY
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
-    get_db_latest_timestamp_for_athlete, save_db_activities
+    get_db_latest_timestamp_for_athlete, save_db_activities,
+    get_db_all_athletes
 )
 from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list
 from core.processor import process_activity_metrics
 import sys
 
-def run_sync(athlete_id):
+def run_sync(athlete_id, athlete_name="Athlete"):
 
     conn = get_db_connection()
     try:
+
+        print(f"\n\t--- Processing: {athlete_name} ({athlete_id}) ---")
 
         user = get_db_user(conn, athlete_id)
 
@@ -23,8 +26,6 @@ def run_sync(athlete_id):
         else:
             athlete_name = "New Athlete"
             exists = False
-
-        print(f"\tAthlete: {athlete_name} ({athlete_id})")
 
         # 1. Get valid token (handles logic internally)
         tokens_dict = get_valid_access_token(conn, athlete_id)
@@ -110,10 +111,12 @@ if __name__ == "__main__":
 
     if len(sys.argv)>1:
         athlete_id = int(sys.argv[1])
+        run_sync(athlete_id, "Manual Trigger")
     else:
-        athlete_id = 12689416
-
-    run_sync(athlete_id)
+        athletes = get_db_all_athletes()
+        print(f"Found {len(athletes)} registered athletes in database.")
+        for athlete in athletes:
+            run_sync(athlete['athlete_id'], athlete['firstname'])
 
     print(f"Sync Finished: {now_str()}")
     print(f"{'='*80}\n")
