@@ -20,6 +20,7 @@ def crawl_backfill(batch_size_per_user=3, sleep_time=2):
 
     # 1. Hard Stop: Only process rides from the last 365 days
     one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d %H:%M:%S')
+    print(one_year_ago)
 
     try:
         # 2. Get all athletes currently in our system
@@ -38,11 +39,11 @@ def crawl_backfill(batch_size_per_user=3, sleep_time=2):
             
             # 3. Find missing streams for THIS specific athlete
             query = """
-                SELECT a.strava_id, a.type 
+                SELECT a.strava_id, a.type, a.start_date_local
                 FROM activities a
                 LEFT JOIN activity_streams s ON a.strava_id = s.strava_id
                 WHERE a.athlete_id = %s 
-                  AND a.type IN ('Ride', 'VirtualRide')
+                  --AND a.type IN ('Ride', 'VirtualRide')
                   AND a.start_date_local >= %s
                   AND s.strava_id IS NULL
                 ORDER BY a.start_date_local DESC
@@ -62,12 +63,18 @@ def crawl_backfill(batch_size_per_user=3, sleep_time=2):
                 #tokens = get_valid_access_token(conn, a_id) this is not really needed (done insite later)
                 for row in to_process:
                     s_id = row['strava_id']
+                    a_type = row['type']
+                    a_date = row['start_date_local'].strftime('%Y-%m-%d')
                     sync_activity_streams(conn, a_id, s_id)
-                    process_activity_metrics(s_id, force=True)
-                    #print(f"    ✨ Processed {s_id}")
+
+                    if a_type in ('Ride','VirtualRide'):
+                        process_activity_metrics(s_id, force=True)
+                        print(f"\t[{a_date}] Stream + Metrics synced for {a_type} ({s_id})")
+                    else:
+                        print(f"\t[{a_date}] Stream only synced for {a_type} ({s_id})")
                     time.sleep(sleep_time) # Pause between activities
             except Exception as user_err:
-                print(f"  ⚠️ Error processing {name}: {user_err}")
+                print(f"⚠️ Error processing {name}: {user_err}")
 
     finally:
         cursor.close()

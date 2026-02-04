@@ -79,6 +79,7 @@ def run_sync(athlete_id):
                     try:
                         # 1. Fetch the activity streams (details)
                         sync_activity_streams(conn,athlete_id,strava_id)
+                        print(f"\t  ✨ Activity stream saved for {strava_id}")
 
                         if activity_type in ['Ride','VirtualRide']:
                             # 2. Trigger calculation of metrics:

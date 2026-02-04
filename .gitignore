@@ -25,3 +25,6 @@ config.py
 
 #old folders:
 archive/
+
+#database sync scripts
+pull_db.sh
