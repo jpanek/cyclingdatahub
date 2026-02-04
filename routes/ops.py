@@ -22,21 +22,32 @@ def inject_globals():
             current_athlete_id=None,
             last_activity_id=None
         )
+    
+    from core.queries import (
+        SQL_GET_USER_NAME,
+        SQL_GET_LATEST_ACTIVITY_ID,
+        SQL_ATHLETE_COUNTS
+    )
 
     # 1. Get User Name for the specific logged-in athlete
-    from core.queries import SQL_GET_USER_NAME
     user_data = run_query(SQL_GET_USER_NAME, (athlete_id,))
     name = user_data[0]['firstname'] if user_data else "Athlete"
     
     # 2. Get Last Activity ID for the specific logged-in athlete
-    from core.queries import SQL_GET_LATEST_ACTIVITY_ID
     last_act_data = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
     last_id = last_act_data[0]['strava_id'] if last_act_data else None
+
+    # 3. Get activity counts:
+    res = run_query(SQL_ATHLETE_COUNTS,(athlete_id, athlete_id))
+    total_activity_count = res[0]['total']
+    total_streams_count = res[0]['streams']
     
     return dict(
         current_user_name=name,
         current_athlete_id=athlete_id,
-        last_activity_id=last_id
+        last_activity_id=last_id,
+        total_activity_count=total_activity_count,
+        total_streams_count=total_streams_count
     )
 
 @ops_bp.route('/sync-activities')

@@ -1,5 +1,13 @@
 # core/queries.py
 
+SQL_ATHLETE_COUNTS="""
+SELECT 
+    (SELECT COUNT(*) FROM activities WHERE athlete_id = %s) as total,
+    (SELECT COUNT(*) FROM activity_streams s 
+     JOIN activities a ON s.strava_id = a.strava_id 
+     WHERE a.athlete_id = %s) as streams
+"""
+
 SQL_MONTHLY_ACTIVITY_METRICS = """
 SELECT 
     TO_CHAR(DATE_TRUNC('month', start_date_local), 'Mon YYYY') as month_label,
