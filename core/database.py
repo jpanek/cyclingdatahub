@@ -99,8 +99,6 @@ def get_db_latest_timestamp_for_athlete(conn, athlete_id):
         return int(res.timestamp()) if res else 0
 
 def save_db_user_profile(conn, athlete_data, tokens):
-    # Convert to Python datetime object first
-    # This works whether tokens['expires_at'] is a datetime or an int
     exp = tokens['expires_at']
     if isinstance(exp, (int, float)):
         expires_dt = datetime.fromtimestamp(exp)
@@ -110,20 +108,34 @@ def save_db_user_profile(conn, athlete_data, tokens):
     with conn.cursor() as cur:
         sql = """
             INSERT INTO users (athlete_id, firstname, lastname, refresh_token, access_token, expires_at)
-            VALUES (%s, %s, %s, %s, %s, %s) -- Removed to_timestamp
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (athlete_id) DO UPDATE SET
                 firstname = EXCLUDED.firstname,
                 lastname = EXCLUDED.lastname,
                 refresh_token = EXCLUDED.refresh_token,
                 access_token = EXCLUDED.access_token,
                 expires_at = EXCLUDED.expires_at,
-                updated_at = NOW();
+                updated_at = NOW()
+            RETURNING (xmax = 0) AS is_insert;
         """
         cur.execute(sql, (
             athlete_data['id'], athlete_data.get('firstname'), athlete_data.get('lastname'),
-            tokens['refresh_token'], tokens['access_token'], expires_dt # Passing the object
+            tokens['refresh_token'], tokens['access_token'], expires_dt
         ))
+        
+        # This will be True if it was a new user, False if it was an update
+        is_insert = cur.fetchone()[0]
+        
+        athlete_id = athlete_data['id']
+        name = f"{athlete_data.get('firstname')} {athlete_data.get('lastname')}"
+        
+        if is_insert:
+            print(f"[{datetime.now()}] DB_LOG: New user created: {name} ({athlete_id})")
+        else:
+            print(f"[{datetime.now()}] DB_LOG: Existing user updated: {name} ({athlete_id})")
+            
     conn.commit()
+    return is_insert
 
 def save_db_activities(conn, athlete_id, activities):
     insert_sql = """

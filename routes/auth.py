@@ -32,8 +32,8 @@ def force_login():
 
 @auth_bp.route('/login')
 def login():
-    # Define the permissions we need
-    # activity:read_all is usually what you want for a full history
+    print(f"[{datetime.now()}] INFO: Redirecting user to Strava for authorization.")
+
     params = {
         'client_id': current_app.config['APP_STRAVA_CLIENT_ID'],
         'redirect_uri': url_for('auth.strava_callback', _external=True),
@@ -43,13 +43,6 @@ def login():
     }
     strava_url = f"https://www.strava.com/oauth/authorize?{urlencode(params)}"
     
-    """
-    print("\n--- DEBUG STRAVA PARAMS ---")
-    print(params)
-    print("---------------------------\n")
-    return f"Debug: {params}"
-    """
-
     return redirect(strava_url)
 
 @auth_bp.route('/callback')
@@ -58,7 +51,14 @@ def strava_callback():
     error = request.args.get('error')
 
     if error or not code:
+        print(f"[{datetime.now()}] ERROR: Strava returned an error: {error}")
         return f"Authorization failed: {error}", 400
+    
+    if not code:
+        print(f"[{datetime.now()}] WARNING: Callback reached without a code.")
+        return "No code provided", 400
+
+    print(f"[{datetime.now()}] INFO: Received code from Strava. Attempting token exchange.")
 
     # 1. Exchange the temporary code for permanent tokens
     token_url = "https://www.strava.com/oauth/token"
@@ -73,6 +73,7 @@ def strava_callback():
     token_data = response.json()
 
     if response.status_code != 200:
+        print(f"[{datetime.now()}] ERROR: Token exchange failed with status {response.status_code}")
         return f"Token exchange failed: {token_data}", 400
     
     # -------------------------------------------------------------------------------------------
@@ -91,14 +92,17 @@ def strava_callback():
     # Strava returns { "access_token": "...", "athlete": { "id": 123, "firstname": "..." }, ... }
     athlete_data = token_data.get('athlete')
     athlete_id = athlete_data.get('id')
+    name = f"{athlete_data.get('firstname')} {athlete_data.get('lastname')}"
 
     # 3. Save tokens and profile to DB using your existing function
     conn = get_db_connection()
     try:
         save_db_user_profile(conn, athlete_data, token_data)
-        
-        # 4. Log the user into the session
         session['athlete_id'] = athlete_id
+        print(f"[{datetime.now()}] SUCCESS: Authenticated user {name} ({athlete_id}). Session set.")
+    except Exception as e:
+        print(f"[{datetime.now()}] CRITICAL: Failed to save user {athlete_id} to DB: {e}")
+        return "Internal Database Error", 500
     finally:
         conn.close()
 
