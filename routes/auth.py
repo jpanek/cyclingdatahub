@@ -27,14 +27,23 @@ def login():
     # Define the permissions we need
     # activity:read_all is usually what you want for a full history
     params = {
-        'client_id': current_app.config['STRAVA_CLIENT_ID'],
+        'client_id': current_app.config['APP_STRAVA_CLIENT_ID'],
         'redirect_uri': url_for('auth.strava_callback', _external=True),
         'response_type': 'code',
         'scope': 'read,activity:read_all',
         'approval_prompt': 'auto'
     }
     strava_url = f"https://www.strava.com/oauth/authorize?{urlencode(params)}"
-    return redirect(strava_url)
+    
+    # This will print in your VS Code terminal
+    print("\n--- DEBUG STRAVA PARAMS ---")
+    print(params)
+    print("---------------------------\n")
+    
+    # This will show in your browser so you don't have to check the terminal
+    return f"Debug: {params}"
+
+    #return redirect(strava_url)
 
 @auth_bp.route('/callback')
 def strava_callback():

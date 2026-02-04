@@ -8,7 +8,7 @@ import config
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = config.SECRET_KEY
+app.config.from_object(config)
 
 # Register standard Flask routes from main.py
 app.register_blueprint(main_bp)
