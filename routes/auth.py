@@ -35,15 +35,14 @@ def login():
     }
     strava_url = f"https://www.strava.com/oauth/authorize?{urlencode(params)}"
     
-    # This will print in your VS Code terminal
+    """
     print("\n--- DEBUG STRAVA PARAMS ---")
     print(params)
     print("---------------------------\n")
-    
-    # This will show in your browser so you don't have to check the terminal
     return f"Debug: {params}"
+    """
 
-    #return redirect(strava_url)
+    return redirect(strava_url)
 
 @auth_bp.route('/callback')
 def strava_callback():
