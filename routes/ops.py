@@ -1,10 +1,15 @@
 # routes/ops.py
 import subprocess
 import os
-from flask import Blueprint, redirect, url_for, flash, request, session, current_app, render_template
+import json
+from flask import (
+    Blueprint, redirect, url_for, flash, request, 
+    session, current_app, render_template, jsonify
+    )
 from config import LOG_PATH, BASE_PATH
 from core.database import run_query
 from routes.auth import login_required
+from datetime import datetime
 
 ops_bp = Blueprint('ops', __name__)
 
@@ -39,8 +44,12 @@ def inject_globals():
 
     # 3. Get activity counts:
     res = run_query(SQL_ATHLETE_COUNTS,(athlete_id, athlete_id))
-    total_activity_count = res[0]['total']
-    total_streams_count = res[0]['streams']
+    if res and len(res) > 0:
+        total_activity_count = res[0].get('total', 0)
+        total_streams_count = res[0].get('streams', 0)
+    else:
+        total_activity_count = 0
+        total_streams_count = 0
     
     return dict(
         current_user_name=name,
@@ -100,3 +109,64 @@ def show_logs():
         content = f"Log file {filename} not found."
 
     return render_template('logs.html', content=content, log_type=log_type)
+
+@ops_bp.route('/webhook', methods=['GET', 'POST'])
+def strava_webhook():
+    """
+    Handles Strava Webhook: 
+    GET for subscription validation, POST for activity events.
+    """
+    # --- 1. THE HANDSHAKE (GET) ---
+    if request.method == 'GET':
+        hub_mode = request.args.get('hub.mode')
+        hub_token = request.args.get('hub.verify_token')
+        hub_challenge = request.args.get('hub.challenge')
+
+        if hub_mode == 'subscribe' and hub_token == current_app.config['STRAVA_WEBHOOK_VERIFY_TOKEN']:
+            print(f"[{datetime.now()}] WEBHOOK: Handshake successful.")
+            return jsonify({"hub.challenge": hub_challenge}), 200
+        
+        print(f"[{datetime.now()}] WEBHOOK: Handshake failed (Unauthorized).")
+        return "Unauthorized", 403
+
+    # --- 2. THE EVENT (POST) ---
+    if request.method == 'POST':
+        data = request.get_json()
+
+        # LOG the webhook to create a trail of all updates/deletes/deauths
+        log_file_path = os.path.join(current_app.config['BASE_PATH'], 'logs', 'webhook_events.log')
+        try:
+            with open(log_file_path, 'a') as f:
+                log_entry = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "payload": data
+                }
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception as e:
+            print(f"Failed to log webhook event: {e}")
+        
+        # For event "activity" and aspect "create" process:
+        if data.get('object_type') == 'activity' and data.get('aspect_type') == 'create':
+            athlete_id = data.get('owner_id')
+            activity_id = data.get('object_id')
+            
+            print(f"[{datetime.now()}] WEBHOOK: New activity {activity_id} for athlete {athlete_id}. Triggering sync.")
+
+            # Trigger the same subprocess logic you already use in sync_activities
+            try:
+                python_executable = os.path.join(BASE_PATH, 'venv', 'bin', 'python')
+                script_path = os.path.join(BASE_PATH, 'run_sync.py')
+                
+                with open(LOG_PATH, "a") as log_file:
+                    log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: New activity detected for {athlete_id}\n")
+                    subprocess.Popen(
+                        [python_executable, "-u", script_path, str(athlete_id)],
+                        stdout=log_file,
+                        stderr=log_file,
+                        cwd=BASE_PATH
+                    )
+            except Exception as e:
+                print(f"[{datetime.now()}] WEBHOOK ERROR: Failed to start subprocess: {e}")
+
+        # Always return 200 OK to Strava immediately
+        return "EVENT_RECEIVED", 200
