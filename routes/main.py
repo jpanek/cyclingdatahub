@@ -79,8 +79,6 @@ def activity_detail(strava_id):
     prev_id = prev_res[0]['strava_id'] if prev_res else None
     next_id = next_res[0]['strava_id'] if next_res else None
 
-    print(activity.keys())
-
     #get the best power curve:
     best_curve = get_best_power_curve(athlete_id, months=12)
         
