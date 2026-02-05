@@ -133,6 +133,12 @@ def strava_webhook():
     if request.method == 'POST':
         data = request.get_json()
 
+        #Security: check the webhook subscription ID:
+        subscription_id = current_app.config.get('STRAVA_WEBHOOK_SUBSCRIPTION_ID')
+        if data.get('subscription_id') != subscription_id:
+            print(f"[{datetime.now()}] WEBHOOK: Ignoring event from unknown subscription {data.get('subscription_id')}")
+            return "EVENT_RECEIVED", 200 # Still return 200 so Strava doesn't retry
+
         # LOG the webhook to create a trail of all updates/deletes/deauths
         log_file_path = os.path.join(current_app.config['BASE_PATH'], 'logs', 'webhook_events.log')
         try:
