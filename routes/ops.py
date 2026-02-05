@@ -4,7 +4,7 @@ import os
 import json
 from flask import (
     Blueprint, redirect, url_for, flash, request, 
-    session, current_app, render_template, jsonify
+    session, current_app, jsonify
     )
 from config import LOG_PATH, BASE_PATH
 from core.database import run_query
@@ -84,31 +84,6 @@ def sync_activities():
     
     # Force redirect back to the logs page, specifically the sync log view
     return redirect(url_for('ops.show_logs', type='sync'))
-
-@ops_bp.route('/log')
-@login_required
-def show_logs():
-    # Define allowed logs for security
-    log_map = {
-        'sync': 'run_sync_log.log',
-        'crawler': 'crawler_log.log'
-    }
-    
-    log_type = request.args.get('type', 'sync')
-    filename = log_map.get(log_type, 'run_sync_log.log')
-    
-    log_path = os.path.join(current_app.root_path, 'logs', filename)
-    
-    content = ""
-    if os.path.exists(log_path):
-        with open(log_path, 'r') as f:
-            lines = f.readlines()
-            # Take last 200 lines and reverse them so newest is at the top
-            content = "".join(reversed(lines[-200:]))
-    else:
-        content = f"Log file {filename} not found."
-
-    return render_template('logs.html', content=content, log_type=log_type)
 
 @ops_bp.route('/webhook', methods=['GET', 'POST'])
 def strava_webhook():

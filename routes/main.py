@@ -4,7 +4,7 @@ import csv, io
 import json
 from flask import (
     Blueprint, render_template, request, Response, jsonify,
-    session, redirect, url_for
+    session, current_app
 )
 from datetime import datetime, timedelta
 from config import LOG_PATH
@@ -32,7 +32,6 @@ def index():
     activity_count = res[0]['count'] if res else 0
     #activity_count = 0
     return render_template('index.html', syncing=(activity_count == 0))
-
 
 @main_bp.route('/dashboard')
 @login_required
@@ -143,6 +142,31 @@ def activities_list():
         current_type=activity_type,
         activity_types=activity_types
     )
+
+@main_bp.route('/log')
+@login_required
+def show_logs():
+    # Define allowed logs for security
+    log_map = {
+        'sync': 'run_sync_log.log',
+        'crawler': 'crawler_log.log'
+    }
+    
+    log_type = request.args.get('type', 'sync')
+    filename = log_map.get(log_type, 'run_sync_log.log')
+    
+    log_path = os.path.join(current_app.root_path, 'logs', filename)
+    
+    content = ""
+    if os.path.exists(log_path):
+        with open(log_path, 'r') as f:
+            lines = f.readlines()
+            # Take last 200 lines and reverse them so newest is at the top
+            content = "".join(reversed(lines[-200:]))
+    else:
+        content = f"Log file {filename} not found."
+
+    return render_template('logs.html', content=content, log_type=log_type)
 
 def export_to_csv(data):
     if not data:

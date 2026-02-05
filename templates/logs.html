@@ -19,11 +19,11 @@
                     </a>
 
                     <div class="btn-group" role="group">
-                        <a href="{{ url_for('ops.show_logs', type='sync') }}" 
+                        <a href="{{ url_for('main.show_logs', type='sync') }}" 
                            class="btn btn-sm {{ 'btn-secondary' if log_type == 'sync' else 'btn-outline-secondary' }}">
                            Sync Log
                         </a>
-                        <a href="{{ url_for('ops.show_logs', type='crawler') }}" 
+                        <a href="{{ url_for('main.show_logs', type='crawler') }}" 
                            class="btn btn-sm {{ 'btn-secondary' if log_type == 'crawler' else 'btn-outline-secondary' }}">
                            Crawler Log
                         </a>
