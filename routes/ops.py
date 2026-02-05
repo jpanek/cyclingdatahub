@@ -127,11 +127,12 @@ def strava_webhook():
             print(f"Failed to log webhook event: {e}")
         
         # For event "activity" and aspect "create" process:
-        if data.get('object_type') == 'activity' and data.get('aspect_type') == 'create':
+        if data.get('object_type') == 'activity' and data.get('aspect_type') in ['create', 'update']:
             athlete_id = data.get('owner_id')
             activity_id = data.get('object_id')
+            aspect = data.get('aspect_type')
             
-            print(f"[{datetime.now()}] WEBHOOK: New activity {activity_id} for athlete {athlete_id}. Triggering sync.")
+            print(f"[{datetime.now()}] WEBHOOK: Activity {aspect} {activity_id} for athlete {athlete_id}. Triggering sync.")
 
             # Trigger the same subprocess logic you already use in sync_activities
             try:
@@ -139,7 +140,7 @@ def strava_webhook():
                 script_path = os.path.join(BASE_PATH, 'run_sync.py')
                 
                 with open(LOG_PATH, "a") as log_file:
-                    log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: New activity detected for {athlete_id}\n")
+                    log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: Activity {aspect} {activity_id} detected for {athlete_id}\n")
                     subprocess.Popen(
                         [python_executable, "-u", script_path, str(athlete_id)],
                         stdout=log_file,
