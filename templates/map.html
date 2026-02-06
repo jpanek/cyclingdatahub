@@ -22,7 +22,7 @@
     
         <div style="min-width: 140px;">
             <select id="typeSelector" class="form-select form-select-custom" onchange="loadMapData()">
-                <option value="Ride" selected>Rides</option>
+                <option value="Ride" selected>Ride</option>
                 <option value="All" >All Types</option>
             </select>
         </div>
@@ -125,12 +125,33 @@
                         if (ride.map_polyline && ride.map_polyline !== 'None') {
                             try {
                                 const coords = polyline.decode(ride.map_polyline);
+                                const detailUrl = `/activity/${ride.strava_id}`;
+
+                                const popupContent = `
+                                    <div style="font-family: sans-serif;">
+                                        <b style="font-size: 1.1em;">${ride.name}</b><br>
+                                        <span style="color: #666;">${ride.activity_date}</span><br>
+                                        <hr style="margin: 8px 0;">
+                                        <a href="${detailUrl}" target="_blank" rel="noopener noreferrer"  style="color: #d90429; font-weight: bold; text-decoration: none;">
+                                            View Activity →
+                                        </a>
+                                    </div>
+                                `;
+                                
+                                // expand hit area around the line
+                                L.polyline(coords, {
+                                    color: 'transparent',
+                                    weight: 20,         // Much easier to click!
+                                    interactive: true
+                                }).addTo(routeGroup)
+                                .bindPopup(popupContent);
+
                                 const poly = L.polyline(coords, {
                                     color: '#d90429',
                                     weight: 2,
-                                    opacity: 0.7
+                                    opacity: 0.7,
+                                    interactive: false
                                 }).addTo(routeGroup)
-                                  .bindPopup(`<b>${ride.name}</b><br>${ride.activity_date}`);
                                 
                                 tempBounds.push(poly.getBounds());
                             } catch (e) { console.error("Error decoding polyline", e); }
@@ -160,7 +181,7 @@
 
         function resetFilters() {
             document.getElementById('searchFilter').value = '';
-            document.getElementById('typeSelector').value = 'All';
+            document.getElementById('typeSelector').value = 'Ride';
             document.getElementById('rangeSelector').value = '12';
             
             // Refresh the map with default values
