@@ -7,9 +7,42 @@ from core.database import (
     get_db_latest_timestamp_for_athlete, save_db_activities,
     get_db_all_athletes
 )
-from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list
+from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list, fetch_activity_detail
 from core.processor import process_activity_metrics
 import sys
+
+def sync_single_activity(athlete_id, activity_id):
+    conn = get_db_connection()
+    try:
+        print(f"\n\t--- Targeted Sync: Activity {activity_id} for Athlete {athlete_id} ---")
+        
+        # 1. Get valid token
+        tokens_dict = get_valid_access_token(conn, athlete_id)
+        token = tokens_dict['access_token']
+        
+        # 2. Fetch the specific activity detail (Summary/Metadata)
+        # This will get the new name/distance even if the activity is old
+        activity = fetch_activity_detail(token, activity_id)
+        
+        if activity:
+            # 3. Save it (save_db_activities expects a list, so we wrap it)
+            save_db_activities(conn, athlete_id, [activity])
+            print(f"\t✅ Activity {activity_id} metadata updated in DB.")
+
+            # 4. Sync streams/metrics if it's a cycling activity
+            from core.strava_api import sync_activity_streams
+            sync_activity_streams(conn, athlete_id, activity_id)
+            
+            if activity.get('type') in ['Ride', 'VirtualRide']:
+                process_activity_metrics(activity_id, force=True)
+                print(f"\t✨ Analytics metrics recalculated for {activity_id}")
+        else:
+            print(f"\t⚠️ Could not find activity {activity_id} on Strava.")
+
+    except Exception as e:
+        print(f"❌ ERROR in single sync: {str(e)}")
+    finally:
+        conn.close()
 
 def run_sync(athlete_id, athlete_name="Athlete"):
 
@@ -109,7 +142,12 @@ if __name__ == "__main__":
     print(f"\n{'='*80}")
     print(f"Sync started: {now_str()}")
 
-    if len(sys.argv)>1:
+    if len(sys.argv) > 2:
+        athlete_id = int(sys.argv[1])
+        activity_id = int(sys.argv[2])
+        sync_single_activity(athlete_id, activity_id)
+
+    elif len(sys.argv)>1:
         athlete_id = int(sys.argv[1])
         run_sync(athlete_id, "Manual Trigger")
     else:

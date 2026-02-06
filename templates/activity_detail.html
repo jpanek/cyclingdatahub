@@ -31,15 +31,32 @@
     </div>
 
     <!-- Titles -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex flex-column">
-            <h4 class="mb-1 fw-bold">{{ activity.name }}</h4>
-            <div class="text-muted fs-5">
-                <span class="badge rounded-pill bg-light text-dark border">{{ activity.type }}</span>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-2">
+        <div class="d-flex flex-column overflow-hidden" style="min-width: 0;">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h4 class="mb-0 fw-bold text-truncate" 
+                    style="max-width: 70%;" 
+                    title="{{ activity.name }}">
+                    {{ activity.name }}
+                </h4>
+                <span class="badge rounded-pill bg-light text-dark border" style="flex-shrink: 0;">
+                    {{ activity.type }}
+                </span>
             </div>
-            <div class="text-muted fs-5">
-                {{ activity.start_date_local.strftime('%A, %B %d, %Y') }} 
-                <span class="text-dark">at {{ activity.start_date_local.strftime('%H:%M') }}</span>
+            
+            <div>
+                <a href="https://www.strava.com/activities/{{ activity.strava_id }}" 
+                   target="_blank" 
+                   class="text-decoration-none"
+                   style="color: #FC5200; font-weight: bold; font-size: 0.8rem;">
+                   View on Strava
+                </a>
+            </div>
+        </div>
+    
+        <div class="text-md-end flex-shrink-0">
+            <div class="text-muted fs-6">
+                {{ activity.start_date_local.strftime('%A, %B %d, %Y') }}
             </div>
         </div>
     </div>

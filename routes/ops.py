@@ -142,7 +142,7 @@ def strava_webhook():
                 with open(LOG_PATH, "a") as log_file:
                     log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: Activity {aspect} {activity_id} detected for {athlete_id}\n")
                     subprocess.Popen(
-                        [python_executable, "-u", script_path, str(athlete_id)],
+                        [python_executable, "-u", script_path, str(athlete_id), str(activity_id)],
                         stdout=log_file,
                         stderr=log_file,
                         cwd=BASE_PATH

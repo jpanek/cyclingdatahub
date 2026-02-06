@@ -40,3 +40,40 @@
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
 }
+
+
+/* ================ CSS for /maps page ==============*/
+#map { 
+    height: calc(100vh - 220px); 
+    min-height: 400px;
+    width: 100%; 
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #dee2e6;
+}
+.map-container { 
+    padding-top: 10px; 
+    padding-bottom: 20px;
+}
+
+/* Optional: Make the lines look even better (thinner on desktop) */
+.leaflet-interactive {
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+/* Minimalist Recenter Button */
+.leaflet-bar a.recenter-control {
+    background-color: #fff;
+    border-bottom: 1px solid #ccc; /* Matches Leaflet's internal divider */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.1s;
+    font-size: 16px;
+    color: #444;
+}
+
+.leaflet-bar a.recenter-control:hover {
+    background-color: #b2acac;
+}

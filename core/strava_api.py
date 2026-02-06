@@ -55,6 +55,20 @@ def fetch_athlete_data(access_token):
     res.raise_for_status()
     return res.json()
 
+def fetch_activity_detail(access_token, activity_id):
+    """
+    Fetches a single activity's full summary/detail by its ID.
+    Used for targeted updates from webhooks.
+    """
+    headers = {"Authorization": f"Bearer {access_token}"}
+    url = f"https://www.strava.com/api/v3/activities/{activity_id}"
+    
+    res = requests.get(url, headers=headers, timeout=STRAVA_TIMEOUT)
+    res.raise_for_status()
+    
+    print_rate_limits(res)
+    return res.json()
+
 def fetch_activities_list(access_token, params):
     headers = {"Authorization": f"Bearer {access_token}"}
     res = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers, params=params, timeout=STRAVA_TIMEOUT)

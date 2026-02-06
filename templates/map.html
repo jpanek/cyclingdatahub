@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+<div class="map-container">
+    <div class="row mb-2">
+        <div class="col d-flex align-items-center gap-2">
+            <h2 class="mb-0">Activity Heatmap</h2><span id="rideCount" class="badge bg-secondary">0 activities</span>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <div style="flex-grow: 1; min-width: 200px;">
+            <input type="text" id="searchFilter" class="form-control form-select-custom" 
+                   placeholder="Search activity name..." oninput="loadMapData()">
+        </div>
+    
+        <div style="min-width: 140px;">
+            <select id="typeSelector" class="form-select form-select-custom" onchange="loadMapData()">
+                <option value="Ride" selected>Rides</option>
+                <option value="All" >All Types</option>
+            </select>
+        </div>
+    
+        <div style="min-width: 160px;">
+            <select id="rangeSelector" class="form-select form-select-custom" onchange="loadMapData()">
+                <option value="1">Last 1 Month</option>
+                <option value="3" selected>Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+                <option value="12">Last Year</option>
+                <option value="24">Last 2 Years</option>
+                <option value="0">Full History</option>
+            </select>
+        </div>
+
+        <div style="min-width: 100px;">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <div style="position: relative;">
+    <div id="map"></div>
+    <div id="no-results-overlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; border: 1px solid #ccc; pointer-events: none;">
+        <h4 class="mb-0 text-muted">No activities found matching filters</h4>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-polyline/1.1.1/polyline.js"></script>
+
+    <script>
+        // 1. Initialize Globals
+        const map = L.map('map').setView([0, 0], 2);
+        let routeGroup = L.featureGroup().addTo(map);
+        let currentBounds = null; 
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 2. Recenter Button
+        const RecenterControl = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                const button = L.DomUtil.create('a', 'recenter-control', container);
+                button.innerHTML = '⌂'; 
+                button.href = '#';
+                button.onclick = function(e) {
+                    e.preventDefault();
+                    if (currentBounds) map.fitBounds(currentBounds, { padding: [30, 30] });
+                };
+                return container;
+            }
+        });
+        map.addControl(new RecenterControl());
+
+        // 3. Main Data Loading Function
+        function loadMapData() {
+            const range = document.getElementById('rangeSelector').value;
+            const type = document.getElementById('typeSelector').value;
+            const search = document.getElementById('searchFilter').value;
+
+            const url = `/api/map-data?range=${range}&type=${type}&search=${encodeURIComponent(search)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the unified response structure: { activities: [], available_types: [] }
+                    const activities = data.activities || [];
+                    const types = data.available_types || [];
+                    const overlay = document.getElementById('no-results-overlay');
+
+                    document.getElementById('rideCount').innerText = `${activities.length} activities`;
+                    
+                    if (activities.length === 0) {
+                        overlay.style.display = 'block'; // Show message
+                        routeGroup.clearLayers();
+                        document.getElementById('rideCount').innerText = '0 activities';
+                        return;
+                    } else {
+                        overlay.style.display = 'none'; // Hide message
+                    }
+
+                    // Update Dropdown counts if available
+                    if (types.length > 0) {
+                        updateDropdown(types, type);
+                    }
+
+                    routeGroup.clearLayers();
+                    const tempBounds = [];
+
+                    activities.forEach(ride => {
+                        if (ride.map_polyline && ride.map_polyline !== 'None') {
+                            try {
+                                const coords = polyline.decode(ride.map_polyline);
+                                const poly = L.polyline(coords, {
+                                    color: '#d90429',
+                                    weight: 2,
+                                    opacity: 0.7
+                                }).addTo(routeGroup)
+                                  .bindPopup(`<b>${ride.name}</b><br>${ride.activity_date}`);
+                                
+                                tempBounds.push(poly.getBounds());
+                            } catch (e) { console.error("Error decoding polyline", e); }
+                        }
+                    });
+
+                    if (tempBounds.length > 0) {
+                        const group = L.featureGroup(tempBounds.map(b => L.rectangle(b)));
+                        currentBounds = group.getBounds(); 
+                        map.fitBounds(currentBounds, { padding: [30, 30] });
+                    }
+                })
+                .catch(err => console.error('Fetch error:', err));
+        }
+
+        function updateDropdown(types, currentVal) {
+            const selector = document.getElementById('typeSelector');
+            // Store current selection to prevent reset
+            const active = selector.value || currentVal;
+            
+            let html = `<option value="All" ${active === 'All' ? 'selected' : ''}>All Types</option>`;
+            types.forEach(t => {
+                html += `<option value="${t.type}" ${active === t.type ? 'selected' : ''}>${t.type}</option>`;
+            });
+            selector.innerHTML = html;
+        }
+
+        function resetFilters() {
+            document.getElementById('searchFilter').value = '';
+            document.getElementById('typeSelector').value = 'All';
+            document.getElementById('rangeSelector').value = '12';
+            
+            // Refresh the map with default values
+            loadMapData();
+        }
+
+
+        loadMapData();
+
+        
+    </script>
+{% endblock %}

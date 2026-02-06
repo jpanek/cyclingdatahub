@@ -5,11 +5,12 @@ from psycopg2.extras import execute_batch, Json
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
 import pandas as pd
+from core.map_utils import process_activity_map
 
 try:
-    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, DB_PASS
+    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, DB_PASS, MAP_SUMMARY_TOLERANCE
 except ImportError:
-    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT
+    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, MAP_SUMMARY_TOLERANCE
     DB_PASS = None
 
 import numpy as np
@@ -150,23 +151,44 @@ def save_db_activities(conn, athlete_id, activities):
             average_speed, max_speed, average_watts, max_watts,
             weighted_average_watts, kilojoules, average_heartrate,
             max_heartrate, average_cadence, suffer_score,
-            achievement_count, kudos_count, map_polyline, device_name, raw_json
+            achievement_count, kudos_count, map_polyline, device_name, raw_json,
+            summary_polyline, min_lat, max_lat, min_lng, max_lng
         ) VALUES (
             %(id)s, %(athlete_id)s, %(name)s, %(type)s, %(start_date)s,
             %(dist)s, %(mov_t)s, %(ela_t)s, %(elev)s,
             %(avg_s)s, %(max_s)s, %(avg_w)s, %(max_w)s,
             %(weighted_w)s, %(kj)s, %(avg_hr)s,
             %(max_hr)s, %(avg_cad)s, %(suffer)s,
-            %(achieve)s, %(kudos)s, %(poly)s, %(device)s, %(raw)s
+            %(achieve)s, %(kudos)s, %(poly)s, %(device)s, %(raw)s,
+            %(sum_poly)s, %(mi_lat)s, %(ma_lat)s, %(mi_lng)s, %(ma_lng)s
         ) 
         ON CONFLICT (strava_id) DO UPDATE SET
-            name = EXCLUDED.name, distance = EXCLUDED.distance,
-            moving_time = EXCLUDED.moving_time, average_watts = EXCLUDED.average_watts,
+            name = EXCLUDED.name, 
+            distance = EXCLUDED.distance,
+            moving_time = EXCLUDED.moving_time, 
+            average_watts = EXCLUDED.average_watts,
             weighted_average_watts = EXCLUDED.weighted_average_watts,
+            summary_polyline = EXCLUDED.summary_polyline,
+            min_lat = EXCLUDED.min_lat, 
+            max_lat = EXCLUDED.max_lat,
+            min_lng = EXCLUDED.min_lng, 
+            max_lng = EXCLUDED.max_lng,
             updated_at = NOW();
     """
     data = []
     for a in activities:
+        # 1. Clean the original polyline ('' to None)
+        raw_poly = a.get('map', {}).get('summary_polyline')
+        raw_poly = raw_poly if raw_poly else None
+        
+        # 2. Calculate summary and bbox on the fly
+        sum_p, mi_lat, ma_lat, mi_lng, ma_lng = (None, None, None, None, None)
+        if raw_poly:
+            sum_p, mi_lat, ma_lat, mi_lng, ma_lng = process_activity_map(
+                raw_poly, 
+                tolerance=MAP_SUMMARY_TOLERANCE
+            )
+
         data.append({
             'id': a['id'], 'athlete_id': athlete_id, 'name': a.get('name'),
             'type': a.get('type'), 'start_date': a.get('start_date_local'),
@@ -178,9 +200,14 @@ def save_db_activities(conn, athlete_id, activities):
             'avg_hr': a.get('average_heartrate'), 'max_hr': a.get('max_heartrate'),
             'avg_cad': a.get('average_cadence'), 'suffer': a.get('suffer_score'),
             'achieve': a.get('achievement_count'), 'kudos': a.get('kudos_count'),
-            'poly': a.get('map', {}).get('summary_polyline'),
-            'device': a.get('device_name'), 'raw': Json(a)
+            'poly': raw_poly, 
+            'device': a.get('device_name'), 'raw': Json(a),
+            # The extra "Pirate" payload
+            'sum_poly': sum_p, 
+            'mi_lat': mi_lat, 'ma_lat': ma_lat, 
+            'mi_lng': mi_lng, 'ma_lng': ma_lng
         })
+
     with conn.cursor() as cur:
         execute_batch(cur, insert_sql, data)
     conn.commit()
