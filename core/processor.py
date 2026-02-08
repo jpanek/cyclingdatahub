@@ -10,7 +10,6 @@ from core.analysis import (
 import numpy as np
 from psycopg2.extras import Json
 
-
 def process_activity_metrics(strava_id, force=False):
     """
     Fetches streams, calculates all derived metrics including VI, EF, and IF.

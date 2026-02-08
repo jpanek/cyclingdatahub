@@ -7,11 +7,14 @@ from psycopg2.extras import RealDictCursor
 import pandas as pd
 from core.map_utils import process_activity_map
 
-try:
-    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, DB_PASS, MAP_SUMMARY_TOLERANCE
-except ImportError:
-    from config import DB_NAME, DB_USER, DB_HOST, DB_PORT, MAP_SUMMARY_TOLERANCE
-    DB_PASS = None
+import config
+
+DB_NAME = getattr(config, 'DB_NAME')
+DB_USER = getattr(config, 'DB_USER')
+DB_HOST = getattr(config, 'DB_HOST')
+DB_PORT = getattr(config, 'DB_PORT')
+DB_PASS = getattr(config, 'DB_PASS', None)
+MAP_SUMMARY_TOLERANCE = getattr(config, 'MAP_SUMMARY_TOLERANCE', 0.001)
 
 import numpy as np
 from psycopg2.extensions import register_adapter, AsIs
@@ -36,6 +39,24 @@ def get_db_connection():
         host=DB_HOST,
         port=DB_PORT
     )
+
+def delete_db_activity(strava_id):
+    """
+    Removes an activity and its associated streams from the database.
+    Uses run_query to handle transactions and connection management.
+    """
+    try:
+        # 1. Delete streams first (child table)
+        run_query("DELETE FROM activity_streams WHERE strava_id = %s", (strava_id,))
+        
+        # 2. Delete the main activity (parent table)
+        run_query("DELETE FROM activities WHERE strava_id = %s", (strava_id,))
+        
+        print(f"[{datetime.now()}] DB_LOG: Activity deleted: {strava_id}")
+        return True
+    except Exception as e:
+        print(f"[{datetime.now()}] DB_LOG: Error deleting activity {strava_id}: {e}")
+        return False
 
 def run_query(query, params=None):
     """Generic executor that handles both SELECT (returns rows) and INSERT/UPDATE (commits)."""

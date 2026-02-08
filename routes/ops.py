@@ -125,14 +125,16 @@ def strava_webhook():
                 f.write(json.dumps(log_entry) + "\n")
         except Exception as e:
             print(f"Failed to log webhook event: {e}")
+
+        object_type = data.get('object_type')
+        aspect_type = data.get('aspect_type')
+        activity_id = data.get('object_id')
+        athlete_id = data.get('owner_id')
         
         # For event "activity" and aspect "create" process:
-        if data.get('object_type') == 'activity' and data.get('aspect_type') in ['create', 'update']:
-            athlete_id = data.get('owner_id')
-            activity_id = data.get('object_id')
-            aspect = data.get('aspect_type')
+        if object_type == 'activity' and aspect_type in ['create', 'update']:
             
-            print(f"[{datetime.now()}] WEBHOOK: Activity {aspect} {activity_id} for athlete {athlete_id}. Triggering sync.")
+            print(f"[{datetime.now()}] WEBHOOK: Activity {aspect_type} {activity_id} for athlete {athlete_id}. Triggering sync.")
 
             # Trigger the same subprocess logic you already use in sync_activities
             try:
@@ -140,7 +142,7 @@ def strava_webhook():
                 script_path = os.path.join(BASE_PATH, 'run_sync.py')
                 
                 with open(LOG_PATH, "a") as log_file:
-                    log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: Activity {aspect} {activity_id} detected for {athlete_id}\n")
+                    log_file.write(f"\n[{datetime.now()}] WEBHOOK TRIGGER: Activity {aspect_type} {activity_id} detected for {athlete_id}\n")
                     subprocess.Popen(
                         [python_executable, "-u", script_path, str(athlete_id), str(activity_id)],
                         stdout=log_file,
@@ -149,6 +151,19 @@ def strava_webhook():
                     )
             except Exception as e:
                 print(f"[{datetime.now()}] WEBHOOK ERROR: Failed to start subprocess: {e}")
+            
+        elif object_type == 'activity' and aspect_type == 'delete':
+            from core.database import delete_db_activity
+            
+            print(f"[{datetime.now()}] WEBHOOK: Activity delete {activity_id} detected.")
+            success = delete_db_activity(activity_id)
+            
+            try:
+                with open(LOG_PATH, "a") as log_file:
+                    res_str = "SUCCESS" if success else "FAILED"
+                    log_file.write(f"[{datetime.now()}] WEBHOOK DELETE: Activity {activity_id} cleanup {res_str}\n")
+            except Exception as e:
+                print(f"Failed to log deletion to sync log: {e}")
 
         # Always return 200 OK to Strava immediately
         return "EVENT_RECEIVED", 200
