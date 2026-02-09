@@ -10,16 +10,16 @@ from core.database import get_db_connection, get_db_all_athletes, run_query
 from core.strava_api import get_valid_access_token, sync_activity_streams
 from core.processor import process_activity_metrics
 from core.queries import SQL_CRAWLER_BACKLOG
-from config import CRAWL_BACKFILL_SIZE
+from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS
 
-def crawl_backfill(batch_size_per_user=3, sleep_time=2):
+def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
     """
     Cycles through ALL users in the DB and backfills a few historical 
     cycling activities for each, respecting a 1-year hard stop.
     """
 
     # 1. Hard Stop: Only process rides from the last 365 days
-    one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d %H:%M:%S')
+    one_year_ago = (datetime.now() - timedelta(days=history_days)).strftime('%Y-%m-%d %H:%M:%S')
 
     # 2. Get all athletes currently in our system
     athletes = get_db_all_athletes()
@@ -66,7 +66,12 @@ if __name__ == "__main__":
     print(f"Crawl Backfill Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Run a small batch for everyone
-    crawl_backfill(CRAWL_BACKFILL_SIZE)
+    history_days = CRAWL_HISTORY_DAYS
+
+    crawl_backfill(
+        batch_size_per_user = CRAWL_BACKFILL_SIZE, 
+        history_days = history_days
+        )
     
     print(f"Crawl Backfill Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
