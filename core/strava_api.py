@@ -122,3 +122,19 @@ def sync_activity_streams(conn, athlete_id, activity_id, force=False):
     except Exception as e:
         print(f"\t❌ Failed to sync streams for {activity_id}: {e}")
         return False
+
+def post_deauthorization(access_token):
+    """
+    Revokes the current access token and deauthorizes the application.
+    Important: This will trigger a webhook event from Strava (aspect_type='update', authorized='false').
+    """
+    url = "https://www.strava.com/oauth/deauthorize"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        res = requests.post(url, headers=headers, timeout=STRAVA_TIMEOUT)
+        res.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"\t❌ Failed to deauthorize token: {e}")
+        return False

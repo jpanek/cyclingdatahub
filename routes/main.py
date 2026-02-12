@@ -168,6 +168,10 @@ def show_logs():
 
     return render_template('logs.html', content=content, log_type=log_type)
 
+@main_bp.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
 def export_to_csv(data):
     if not data:
         return "No data to export", 400

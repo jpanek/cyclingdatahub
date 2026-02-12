@@ -102,16 +102,25 @@
             hoverinfo: 'text+x'
         };
 
+        const traceSeasonal = {
+            x: data.map(d => d.x),
+            y: data.map(d => d.seasonal_record),
+             name: '30-Day Form',
+            mode: 'lines',
+            line: { shape: 'hv', color: '#212529', width: 2, dash: 'dot' },
+            hoverinfo: 'skip' // Keep it clean
+        };
+
         const layout = {
             margin: { t: 10, r: 20, l: 60, b: 40 },
-            showlegend: false,
+            showlegend: true,
             xaxis: { type: 'date', gridcolor: '#f8f9fa' },
             yaxis: { title: 'Watts', gridcolor: '#f8f9fa' },
             hovermode: 'closest',
             font: { family: 'inherit' }
         };
 
-        Plotly.newPlot('progressionChart', [traceDots, traceLine], layout, {responsive: true, displayModeBar: false});
+        Plotly.newPlot('progressionChart', [traceDots, traceLine , traceSeasonal], layout, {responsive: true, displayModeBar: false});
     };
 
     const renderRadar = () => {
@@ -143,16 +152,19 @@
         }];
 
         const layout = {
-            polar: { 
-                radialaxis: { 
-                    visible: true, 
-                    range: [0, 100], 
-                    ticksuffix: '%',
-                    gridcolor: '#eee' 
-                } 
+            margin: { t: 40, r: 20, l: 60, b: 40 }, // Increased top margin for legend
+            showlegend: false, 
+            legend: {
+                orientation: "h",
+                yanchor: "bottom",
+                y: 1.02,
+                xanchor: "right",
+                x: 1
             },
-            showlegend: false,
-            margin: { t: 30, b: 30, l: 30, r: 30 }
+            xaxis: { type: 'date', gridcolor: '#f8f9fa' },
+            yaxis: { title: 'Watts', gridcolor: '#f8f9fa' },
+            hovermode: 'closest',
+            font: { family: 'inherit' }
         };
 
         Plotly.newPlot('radarChart', data, layout, {displayModeBar: false});

@@ -114,45 +114,76 @@ def get_best_power_curve(athlete_id, months=12):
     return overall_best
 
 def get_performance_summary(athlete_id):
-    """
-    Fetches progression data for all main intervals and yearly peaks.
-    """
     from core.queries import SQL_POWER_PROGRESSION, SQL_YEARLY_PEAKS
+    from core.database import run_query
+    from datetime import datetime, timedelta
     
-    intervals = {
-        '5s': 'peak_5s',
-        '1m': 'peak_1m',
-        '5m': 'peak_5m',
-        '20m': 'peak_20m'
-    }
+    intervals = {'5s': 'peak_5s', '1m': 'peak_1m', '5m': 'peak_5m', '20m': 'peak_20m'}
     
     all_progression = {}
-    all_time_peaks = {} # Store the absolute best for normalization
+    all_time_peaks = {}
+    recent_peaks = {} # This is what was missing
+    
+    # Global cutoff for the Radar Chart (last 90 days from today)
+    today = datetime.now().date()
+    global_recent_cutoff = today - timedelta(days=10)
     
     for label, col in intervals.items():
         query = SQL_POWER_PROGRESSION.replace("{col}", col)
         raw_data = run_query(query, (athlete_id,))
         
+        # Ensure dates are date objects and sorted
+        for r in raw_data:
+            if hasattr(r['date'], 'date'):
+                r['date'] = r['date'].date()
+        
+        raw_data = sorted(raw_data, key=lambda x: x['date'])
+        
         current_max = 0
         processed = []
+        
         for row in raw_data:
-            if row['power'] > current_max:
-                current_max = row['power']
+            pwr = row['power'] or 0
+            ride_date = row['date']
             
+            # 1. Lifetime Record
+            if pwr > current_max:
+                current_max = pwr
+            
+            # 2. Rolling 90-Day Record for the CHART line
+            window_start = ride_date - timedelta(days=30)
+            seasonal_vals = [
+                r['power'] for r in raw_data 
+                if r['power'] is not None 
+                and window_start <= r['date'] <= ride_date
+            ]
+            seasonal_max = max(seasonal_vals) if seasonal_vals else 0
+
             processed.append({
-                'x': row['date'].isoformat(),
-                'y': row['power'],
+                'x': ride_date.isoformat(),
+                'y': pwr,
                 'record': current_max,
+                'seasonal_record': seasonal_max,
                 'name': row['activity_name'],
                 'id': str(row['strava_id'])
             })
+            
         all_progression[label] = processed
-        all_time_peaks[label] = current_max # The last current_max is the all-time best
+        all_time_peaks[label] = current_max
+        
+        # 3. Final "Current" Peak for the Radar Chart
+        # Look at the last 90 days from TODAY across all data
+        final_seasonal_vals = [
+            r['power'] for r in raw_data 
+            if r['power'] is not None and r['date'] > global_recent_cutoff
+        ]
+        recent_peaks[label] = max(final_seasonal_vals) if final_seasonal_vals else 0
 
     yearly_bests = run_query(SQL_YEARLY_PEAKS, (athlete_id,))
         
     return {
         'progression': all_progression,
         'yearly_bests': yearly_bests,
-        'all_time_peaks': all_time_peaks # New key
+        'all_time_peaks': all_time_peaks,
+        'recent_peaks': recent_peaks # Fixed NameError
     }

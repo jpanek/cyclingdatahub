@@ -1,0 +1,88 @@
+<!-- templates/privacy.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy & Terms of Service - Cycling Stats{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 py-5">
+        <h1 class="display-6 mb-4">Privacy Policy & Terms of Service</h1>
+        <p class="text-muted">Effective Date: February 11, 2026</p>
+
+        <section class="mt-5">
+            <h2 class="h4">Introduction</h2>
+            <p>
+                Cycling Stats is a personal data visualization tool designed to help athletes analyze their performance. 
+                By choosing to connect your Strava account to this application, you agree to the collection and processing 
+                of your information as described in this policy. We are committed to transparency and ensuring that 
+                your data remains under your exclusive control.
+            </p>
+        </section>
+
+        <section class="mt-4">
+            <h2 class="h4">Data Collection and Integration</h2>
+            <p>
+                Our application functions by integrating with the Strava API. When you authorize the application, 
+                we collect specific data points required to generate your dashboard and maps. This includes your 
+                public profile information (such as your name and athlete ID), your activity history (including 
+                GPS coordinates, distance, and timestamps), and detailed performance metrics (including heart rate, 
+                power output, cadence, and temperature). 
+            </p>
+            <p>
+                This data is stored securely in our private database to allow for historical analysis and 
+                trend tracking that may not be immediately available through the standard Strava interface.
+            </p>
+        </section>
+
+        <section class="mt-4">
+            <h2 class="h4">Strict Limitations on Data Use</h2>
+            <p>
+                We believe your athletic data belongs to you. Therefore, we operate under a strict set of limitations:
+            </p>
+            <ul>
+                <li><strong>No Commercial Sale:</strong> We do not sell, trade, or provide your personal information or activity data to any third-party advertisers, data brokers, or marketing firms.</li>
+                <li><strong>No AI Training:</strong> In accordance with the latest data protection standards, your data is never used to train, fine-tune, or develop Artificial Intelligence (AI) models, Large Language Models (LLMs), or machine learning algorithms.</li>
+                <li><strong>No Public Sharing:</strong> Your data is stored for your personal view only. This application does not feature public feeds, leaderboards, or social sharing components that would expose your activities to other users.</li>
+            </ul>
+        </section>
+
+        <section class="mt-4">
+            <h2 class="h4">User Rights and Data Portability</h2>
+            <p>
+                You have the right to know what data we hold and the right to request its deletion. We have simplified 
+                this process by providing a "Disconnect & Purge" feature within your account settings. 
+            </p>
+            <p>
+                When you select this option, the application performs a complete and irreversible wipe of your records 
+                from our system. This includes the removal of your athlete profile, all synchronized activity records, 
+                and all high-resolution sensor streams (watts, heart rate, etc.). Furthermore, the application 
+                will communicate with Strava to revoke the digital tokens used to access your account, ensuring no 
+                further data synchronization can occur.
+            </p>
+        </section>
+
+        <section class="mt-4">
+            <h2 class="h4">Contact Information</h2>
+            <p>
+                If you have any questions regarding this Privacy Policy, your data, or the operation of this application, 
+                please contact the administrator directly at: 
+                <a href="mailto:juraj.panek@gmail.com">juraj.panek@gmail.com</a>.
+            </p>
+        </section>
+
+        <section class="mt-4">
+            <h2 class="h4">Disclaimer and Attribution</h2>
+            <p>
+                This service is provided "as is" without warranties of any kind. Cycling Stats is an independent 
+                application and is not an official product of Strava, Inc. All trademarks and logos related to 
+                Strava are the property of Strava, Inc. and are used here solely for integration and attribution purposes.
+            </p>
+        </section>
+
+        <div class="mt-5 pt-4 border-top">
+            <a href="{{ url_for('main.index') }}" class="btn btn-dark">Return to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

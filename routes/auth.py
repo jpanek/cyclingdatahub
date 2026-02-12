@@ -130,3 +130,39 @@ def logout():
     """Clears the session."""
     session.clear()
     return redirect(url_for('main.index'))
+
+
+@auth_bp.route('/disconnect')
+@login_required
+def disconnect():
+    """
+    User-initiated deauthorization.
+    Revokes Strava access, deletes local data, and logs out.
+    """
+    athlete_id = session.get('athlete_id')
+    
+    from core.database import get_db_connection, delete_db_user_data
+    from core.strava_api import get_valid_access_token, post_deauthorization
+
+    conn = get_db_connection()
+    try:
+        # 1. Get token and tell Strava to revoke access
+        tokens = get_valid_access_token(conn, athlete_id)
+        if tokens:
+            #post_deauthorization(tokens['access_token'])
+            print("TEST WARNING: User deauthorized triggered")
+        
+        # 2. Wipe local database for this user
+        #delete_db_user_data(athlete_id)
+        print("TEST WARNING: User DB cleanup triggered")
+        
+        # 3. Clear session
+        session.clear()
+        print(f"[{datetime.now()}] AUTH_LOG: User {athlete_id} disconnected and purged.")
+        
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Disconnect failed for {athlete_id}: {e}")
+    finally:
+        conn.close()
+
+    return redirect(url_for('main.index'))

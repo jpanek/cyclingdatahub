@@ -97,6 +97,9 @@ function updateDashboard() {
     // Update Dropdown text
     const typeBtn = document.getElementById('typeDropdown');
     if (typeBtn) typeBtn.innerText = `Types (${selectedTypes.length})`;
+
+    // update the table data:
+    updateDataTable(timeFiltered, selectedTypes);
 }
 
 // Keeping your utility functions
@@ -249,4 +252,42 @@ function exportModalActivities() {
         .replace(/\s+/g, '_');
     
     downloadCSV(currentModalData, `Activities_${monthTitle}.csv`);
+}
+
+function updateDataTable(timeFiltered, selectedTypes) {
+    const header = document.getElementById('tableHeader');
+    const body = document.getElementById('tableBody');
+    if (!header || !body) return;
+
+    // 1. Setup Headers: Month + Selected Types + Total
+    header.innerHTML = `<th class="ps-3">Month</th>` + 
+        selectedTypes.map(t => `<th class="text-end small">${t}</th>`).join('') + 
+        `<th class="text-end pe-3">Total</th>`;
+
+    // 2. Get Unique Months (sorted newest first)
+    const months = [...new Set(timeFiltered.map(item => item.month_label))].reverse();
+
+    // 3. Generate Rows
+    body.innerHTML = months.map(month => {
+        let rowTotal = 0;
+        
+        const typeCells = selectedTypes.map(type => {
+            const entry = timeFiltered.find(d => d.month_label === month && d.type === type);
+            const val = entry ? (Number(entry[currentMetric]) || 0) : 0;
+            rowTotal += val;
+            
+            // Format numbers: Distance/Energy get 1 decimal, Count gets 0
+            const formattedVal = currentMetric === 'activities' ? val : val.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+            return `<td class="text-end text-muted">${val > 0 ? formattedVal : '-'}</td>`;
+        }).join('');
+
+        const formattedTotal = currentMetric === 'activities' ? rowTotal : rowTotal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+
+        return `
+            <tr>
+                <td class="ps-3 fw-bold">${month}</td>
+                ${typeCells}
+                <td class="text-end pe-3 fw-bold bg-light">${formattedTotal}</td>
+            </tr>`;
+    }).join('');
 }

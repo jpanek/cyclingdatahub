@@ -287,3 +287,36 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
     with conn.cursor() as cur:
         cur.execute(sql, params)
     conn.commit()
+
+
+def delete_db_user_data(athlete_id):
+    """
+    Completely removes a user and all their data in a single transaction.
+    Optimized for high performance on large datasets.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 1. Bulk delete streams using a join-style syntax
+            cur.execute("""
+                DELETE FROM activity_streams s
+                USING activities a
+                WHERE s.strava_id = a.strava_id
+                AND a.athlete_id = %s
+            """, (athlete_id,))
+            
+            # 2. Bulk delete all activities for this athlete
+            cur.execute("DELETE FROM activities WHERE athlete_id = %s", (athlete_id,))
+            
+            # 3. Delete the user profile
+            cur.execute("DELETE FROM users WHERE athlete_id = %s", (athlete_id,))
+            
+            print(f"[{datetime.now()}] DB_LOG: User {athlete_id} and all data purged.")
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"[{datetime.now()}] DB_LOG: Error purging user {athlete_id}: {e}")
+        return False
+    finally:
+        conn.close()

@@ -130,7 +130,18 @@ def strava_webhook():
         aspect_type = data.get('aspect_type')
         activity_id = data.get('object_id')
         athlete_id = data.get('owner_id')
+        updates = data.get('updates', {})
         
+        # --- 1. HANDLE DEAUTHORIZATION ---
+        if object_type == 'athlete' and updates.get('authorized') == 'false':
+            from core.database import delete_db_user_data
+            print(f"[{datetime.now()}] WEBHOOK: Athlete {athlete_id} revoked access. Purging data.")
+            
+            # Since this is a webhook, we just wipe the DB. 
+            # No need to call Strava back; they are the ones who told us!
+            delete_db_user_data(athlete_id)
+            return "EVENT_RECEIVED", 200
+
         # For event "activity" and aspect "create" process:
         if object_type == 'activity' and aspect_type in ['create', 'update']:
             
