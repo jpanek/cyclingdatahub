@@ -149,12 +149,12 @@ def disconnect():
         # 1. Get token and tell Strava to revoke access
         tokens = get_valid_access_token(conn, athlete_id)
         if tokens:
-            #post_deauthorization(tokens['access_token'])
-            print("TEST WARNING: User deauthorized triggered")
+            post_deauthorization(tokens['access_token'])
+            #print("TEST WARNING: User deauthorized triggered")
         
         # 2. Wipe local database for this user
-        #delete_db_user_data(athlete_id)
-        print("TEST WARNING: User DB cleanup triggered")
+        delete_db_user_data(athlete_id)
+        #print("TEST WARNING: User DB cleanup triggered")
         
         # 3. Clear session
         session.clear()
