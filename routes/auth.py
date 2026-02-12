@@ -1,6 +1,6 @@
 # routes/auth.py
 from flask import Blueprint, session, redirect, url_for, current_app, request
-from config import USER_STRAVA_ATHLETE_ID
+from config import USER_STRAVA_ATHLETE_ID, LOG_PATH
 from functools import wraps
 from urllib.parse import urlencode
 import requests
@@ -80,6 +80,7 @@ def strava_callback():
     
     # -------------------------------------------------------------------------------------------
     # --- DEBUG: Save token_data to file ---
+    """
     log_file_path = os.path.join(current_app.config['BASE_PATH'], 'logs', 'test_token_data.log')
     try:
         with open(log_file_path, 'a') as f:
@@ -88,6 +89,7 @@ def strava_callback():
             f.write("\n")
     except Exception as e:
         print(f"Could not write token log: {e}")
+    """
     # -------------------------------------------------------------------------------------------
 
     # 2. Extract data from Strava response
@@ -104,6 +106,11 @@ def strava_callback():
 
         # ------------ NEW USER TIRGGER ACTIVITY LOAD -------------------
         if is_new_user:
+
+            # log to file as well:
+            with open(LOG_PATH, "a") as log_file:
+                log_file.write(f"\n[{datetime.now()}] 🚀 NEW USER REGISTERED: {firstname} ({athlete_id})\n")
+
             print(f"[{datetime.now()}] 🚀 NEW USER: Starting background sync for {firstname} ({athlete_id})...", flush=True)
             sync_thread = threading.Thread(
                 target=run_sync, 
@@ -158,6 +165,10 @@ def disconnect():
         
         # 3. Clear session
         session.clear()
+        
+        with open(LOG_PATH, "a") as log_file:
+            log_file.write(f"\n[{datetime.now()}] ⚠️ USER DISCONNECT: Athlete {athlete_id} initiated full purge.\n")
+
         print(f"[{datetime.now()}] AUTH_LOG: User {athlete_id} disconnected and purged.")
         
     except Exception as e:
