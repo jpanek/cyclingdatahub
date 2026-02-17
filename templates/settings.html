@@ -19,7 +19,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold small">Manual FTP (Watts)</label>
                             <input type="number" name="manual_ftp" class="form-control" 
-                                   value="{{ user.manual_ftp or '' }}" placeholder="e.g. 304">
+                                   value="{{ user.manual_ftp or '' }}" placeholder="empty (e.g. 304)">
                             <div class="form-text text-muted" style="font-size: 0.75rem;">
                                 This will prioritize your custom FTP for TSS and Intensity calculations.
                             </div>
@@ -28,13 +28,13 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold small">Manual Max Heart Rate (BPM)</label>
                             <input type="number" name="manual_max_hr" class="form-control" 
-                                   value="{{ user.manual_max_hr or '' }}" placeholder="e.g. 190">
+                                   value="{{ user.manual_max_hr or '' }}" placeholder="empty (e.g. 190)">
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label fw-semibold small">Weight (kg)</label>
                             <input type="number" step="0.1" name="weight" class="form-control" 
-                                   value="{{ user.weight or '' }}" placeholder="e.g. 75.5">
+                                   value="{{ user.weight or '' }}" placeholder="empty (e.g. 75.5)">
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-4">

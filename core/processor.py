@@ -121,28 +121,50 @@ def process_activity_metrics(strava_id, force=False):
     ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if bests.get('peak_power_20m') else 0
     stale_limit = datetime.now() - timedelta(days=config.FTP_LOOKBACK_DAYS)
 
-    # 5. Point-in-Time Baseline Logic
+# 5. Point-in-Time Baseline Logic
+    #  ---------------------------------------------------------------------------------------------------
+    # PRIO 0: Check for time-travel (Rewind context for historical ride processing)
+    if act['ftp_detected_at'] and ride_date < act['ftp_detected_at']:
+         hist_sql = """
+            SELECT MAX(peak_20m) * 0.95 as hist_ftp, 
+                   MAX(peak_1m_hr) as hist_hr, 
+                   MAX(a.start_date_local) as hist_date
+            FROM activity_analytics aa
+            JOIN activities a ON a.strava_id = aa.strava_id
+            WHERE a.athlete_id = %s 
+            AND a.start_date_local >= (%s::date - make_interval(days => %s))
+            AND a.start_date_local < %s::date
+         """
+         h_res = run_query(hist_sql, (athlete_id, ride_date, config.FTP_LOOKBACK_DAYS, ride_date))
+         if h_res and h_res[0]['hist_ftp']:
+             act['detected_ftp'] = int(h_res[0]['hist_ftp'])
+             act['detected_max_hr'] = h_res[0]['hist_hr']
+             act['ftp_detected_at'] = h_res[0]['hist_date']
+             act['hr_detected_at'] = h_res[0]['hist_date']
+         else:
+             act['detected_ftp'] = config.DEFAULT_FTP
+             # If no history found, set date to long ago to trigger PRIO 2 decay/prime
+             act['ftp_detected_at'] = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS + 1)
+
     # ---------------------------------------------------------------------------------------------------
-    # PRIO 1: Manual FTP exists and the ride is done after the setting:
+    # PRIO 1: Manual FTP exists and the ride is done after the setting
     if act['manual_ftp'] and act['manual_ftp_updated_at'] and ride_date >= act['manual_ftp_updated_at']:
         active_ftp = act['manual_ftp']
+        active_hr = act['manual_max_hr'] or act['detected_max_hr'] or config.DEFAULT_MAX_HR
 
     # -----------------------------------------------------------------------------------------------
     # PRIO 2: No Manual FTP provided
     else:
-        stale_limit = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) #last valid day
+        stale_limit = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS)
         is_ftp_stale = act['detected_ftp'] is not None and act['ftp_detected_at'] < stale_limit
         is_new_ftp_peak = act['detected_ftp'] is not None and ride_ftp_est > act['detected_ftp']
         
-        # Max HR stale check (similar logic)
         is_hr_stale = act['detected_max_hr'] is not None and act['hr_detected_at'] < stale_limit
-        current_max_hr = bests.get('peak_hr_1s') or 0 # Assuming 1s peak is max HR
+        current_max_hr = bests.get('peak_hr_1s') or 0
     
-        # --------------------------------------------------------------------------------------------------
-        # PRIO 2-A: Must update (Estimated FTP (from table) is missing, new peak was reached or its expired)
+        # PRIO 2-A: Must update detection profile
         if act['detected_ftp'] is None or is_new_ftp_peak or is_ftp_stale or is_hr_stale:
 
-            # PRIO 2-A-1: FPT is expired
             if (is_ftp_stale or is_hr_stale) and not is_new_ftp_peak:
                 # GRACEFUL DECAY
                 decay_sql = """
@@ -160,14 +182,13 @@ def process_activity_metrics(strava_id, force=False):
                     active_hr = max(int(decay_res[0]['next_hr']), current_max_hr)
                 else:
                     active_ftp = ride_ftp_est or config.DEFAULT_FTP
-                    active_hr = current_max_hr or act['detected_max_hr']
-
-            # PRIO 2-A-2: FTP is missing (from table) or I have new FTP detected
+                    active_hr = current_max_hr or act['detected_max_hr'] or config.DEFAULT_MAX_HR
             else:
+                # NEW PEAK or INITIAL PRIME
                 active_ftp = ride_ftp_est
                 active_hr = max(current_max_hr, act['detected_max_hr'] or 0)
 
-            # Update the User's detection profile for both
+            # Update the User's detection profile
             run_query("""
                 UPDATE users SET 
                     detected_ftp = %s, ftp_source_strava_id = %s, ftp_detected_at = %s,
@@ -175,8 +196,7 @@ def process_activity_metrics(strava_id, force=False):
                 WHERE athlete_id = %s
             """, (active_ftp, strava_id, ride_date, active_hr, strava_id, ride_date, athlete_id))
 
-        # -------------------------------------------------------------------------------------------
-        # PRIO 3: Use what we already have (or default)
+        # PRIO 3: Steady State
         else:
             active_ftp = act['detected_ftp'] or config.DEFAULT_FTP
             active_hr = act['detected_max_hr'] or config.DEFAULT_MAX_HR
