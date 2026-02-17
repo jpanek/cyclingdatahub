@@ -191,26 +191,27 @@ SQL_CRAWLER_BACKLOG = """
 
 SQL_RAW_DATA = """
 SELECT 
-t.athlete_id,
+    t.athlete_id,
     t.strava_id,
     t.start_date_local::date as date,
     t.name,
     t.type,
-    (t.moving_time / 60) as "Mins",
-    t.max_watts as "Max W",
-    aa.weighted_avg_power as "NP",
-    t.average_heartrate as "Avg HR",
-    t.max_heartrate as "Max HR",
+    (t.moving_time / 60) as "Duration_min",
+    t.kilojoules as "Work_kJ",
+    t.max_watts as "Max_Watts",
+    aa.weighted_avg_power as "NP_Watts",
+    aa.variability_index as "VI",
+    t.average_heartrate as "Avg_HR",
+    ROUND(((t.average_heartrate / NULLIF(t.max_heartrate, 0)) * 100)::numeric, 1) as "HR_Percent_Max",
     aa.intensity_score as "IF",
     aa.training_stress_score as "TSS",
-    aa.baseline_ftp as "FTP Used",
-    aa.aerobic_decoupling as "Decp",
-    aa.efficiency_factor as "EF",
-    aa.power_curve as "Power Curve"
+    aa.baseline_ftp as "Baseline_FTP",
+    aa.aerobic_decoupling as "Decoupling_Pct",
+    aa.efficiency_factor as "Efficiency_EF",
+    aa.power_curve as "Power_Curve"
 FROM activities t
 LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
-WHERE 0=0
-and t.athlete_id = %s
-and t.start_date_local >= CURRENT_DATE - INTERVAL %s
+WHERE t.athlete_id = %s
+  AND t.start_date_local >= CURRENT_DATE - INTERVAL %s
 ORDER BY t.start_date_local DESC
 """
