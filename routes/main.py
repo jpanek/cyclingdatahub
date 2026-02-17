@@ -19,7 +19,8 @@ from core.queries import (
     SQL_PREVIOUS_ACTIVITY_ID,
     SQL_NEXT_ACTIVITY_ID,
     SQL_DAILY_ACTIVITIES_HISTORY,
-    SQL_RAW_DATA
+    SQL_RAW_DATA,
+    SQL_GET_USER_SETTINGS
 )
 
 main_bp = Blueprint('main', __name__)
@@ -197,8 +198,12 @@ def settings():
         # 3. REDIRECT back to the same page. 
         return redirect(url_for('main.settings'))
 
-    # This part only runs on GET (initial load or after redirect)
-    user = run_query("SELECT * FROM users WHERE athlete_id = %s", (athlete_id,))[0]
+    results = run_query(SQL_GET_USER_SETTINGS, (athlete_id,))
+    if not results:
+        flash("User not found.", "danger")
+        return redirect(url_for('main.index'))
+        
+    user = results[0]
     return render_template('settings.html', user=user)
 
 

@@ -98,6 +98,17 @@ SQL_GET_USER_NAME = """
 SELECT firstname, lastname FROM users WHERE athlete_id = %s;
 """
 
+SQL_GET_USER_SETTINGS = """
+SELECT 
+    athlete_id, firstname, lastname, 
+    manual_ftp, detected_ftp, 
+    manual_max_hr, detected_max_hr, 
+    weight, updated_at,
+    manual_ftp_updated_at, manual_max_hr_updated_at
+FROM users 
+WHERE athlete_id = %s
+"""
+
 SQL_GET_LATEST_ACTIVITY_ID = """
 SELECT strava_id 
 FROM activities 
@@ -111,7 +122,7 @@ SELECT
     a.strava_id, a.name, a.type, a.start_date_local, 
     a.distance / 1000.0 as distance_km, 
     a.moving_time, a.total_elevation_gain, a.average_watts, a.average_heartrate,
-    a.average_speed, a.max_speed,
+    a.average_speed, a.max_speed, a.max_watts, a.max_heartrate,
     s.time_series, s.watts_series, s.heartrate_series, s.cadence_series, s.velocity_series, s.latlng_series,
     an.peak_5s, an.peak_1m, an.peak_5m, an.peak_20m, 
     an.peak_5s_hr, an.peak_1m_hr, an.peak_5m_hr, an.peak_20m_hr,

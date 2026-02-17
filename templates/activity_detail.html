@@ -92,7 +92,7 @@
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Avg HR</strong>
-                <span class="fw-bold text-danger">{{ (activity.average_heartrate | default(0, true)) | round | int }} bpm</span>
+                <span class="fw-bold">{{ (activity.average_heartrate | default(0, true)) | round | int }} bpm</span>
             </div>
         </div>
         <div class="col-6 col-md-2">
@@ -167,9 +167,15 @@
                             </tr>
                         </thead>
                         <tbody>
+                            <tr class="table-info-subtle">
+                                <td class="ps-3 fw-bold">Max (Peak)</td>
+                                <td class="fw-bold text-dark">{{ activity.max_watts | round | int if activity.max_watts else '-' }} W</td>
+                                <td class="text-danger fw-bold">{{ activity.max_heartrate | round | int if activity.max_heartrate else '-' }} bpm</td>
+                            </tr>
+                        
                             {% for label in ['5s', '1m', '5m', '20m'] %}
                             <tr>
-                                <td class="ps-3 fw-semibold">{{ '5 Seconds' if label == '5s' else label.replace('m', ' Minute').replace('20 Minute', '20 Minutes') }}</td>
+                                <td class="ps-3 fw-semibold text-muted">{{ '5 Seconds' if label == '5s' else label.replace('m', ' Minute').replace('20 Minute', '20 Minutes') }}</td>
                                 <td class="fw-bold">{{ activity.interval_bests[label]['power'] or '-' }} W</td>
                                 <td class="text-danger">{{ activity.interval_bests[label]['hr'] or '-' }} bpm</td>
                             </tr>
