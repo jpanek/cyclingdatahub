@@ -186,3 +186,25 @@ SQL_CRAWLER_BACKLOG = """
   ORDER BY a.start_date_local DESC
   LIMIT %s
 """
+
+SQL_RAW_DATA = """
+SELECT 
+    t.athlete_id,
+    t.strava_id,
+    t.start_date_local::date as date,
+    t.name,
+    t.type,
+    (t.moving_time / 60) as "Mins",
+    t.max_watts as "Max W",
+    aa.weighted_avg_power as "NP",
+    t.average_heartrate as "Avg HR",
+    t.max_heartrate as "Max HR",
+    aa.intensity_score as "TSS",
+    aa.aerobic_decoupling as "Decp",
+    aa.efficiency_factor as "Efficiency factor",
+    aa.power_curve as "Power Curve"
+FROM activities t
+LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
+WHERE t.start_date_local >= CURRENT_DATE - INTERVAL %s
+ORDER BY t.start_date_local DESC
+"""

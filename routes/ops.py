@@ -4,7 +4,7 @@ import os
 import json
 from flask import (
     Blueprint, redirect, url_for, flash, request, 
-    session, current_app, jsonify
+    session, current_app, jsonify, Response
     )
 from config import LOG_PATH, BASE_PATH
 from core.database import run_query
@@ -60,7 +60,7 @@ def inject_globals():
     )
 
 @ops_bp.route('/sync-activities')
-@login_required # Added this for safety
+@login_required
 def sync_activities():
     athlete_id = session.get('athlete_id')
     if not athlete_id:
@@ -178,3 +178,4 @@ def strava_webhook():
 
         # Always return 200 OK to Strava immediately
         return "EVENT_RECEIVED", 200
+    

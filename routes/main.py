@@ -11,13 +11,15 @@ from config import LOG_PATH
 from core.database import run_query
 from core.analysis import get_best_power_curve, get_performance_summary
 from routes.auth import login_required
+from core.processor import format_activities_to_markdown
 from core.queries import (
     SQL_GET_ACTIVITY_TYPES_BY_COUNT, 
     SQL_MONTHLY_ACTIVITY_METRICS,
     SQL_ACTIVITY_DETAILS,
     SQL_PREVIOUS_ACTIVITY_ID,
     SQL_NEXT_ACTIVITY_ID,
-    SQL_DAILY_ACTIVITIES_HISTORY
+    SQL_DAILY_ACTIVITIES_HISTORY,
+    SQL_RAW_DATA
 )
 
 main_bp = Blueprint('main', __name__)
@@ -171,6 +173,35 @@ def show_logs():
 @main_bp.route('/privacy')
 def privacy():
     return render_template('privacy.html')
+
+@main_bp.route('/dump')
+@login_required
+def dump():
+    days = request.args.get('days', default=7, type=int)    
+    rows = run_query(SQL_RAW_DATA, (f'{days} days',))
+    
+    if not rows:
+        return render_template('dump.html', markdown_data="No data found.", days=days)
+    
+    markdown_data = format_activities_to_markdown(rows)
+    
+    return render_template('dump.html', markdown_data=markdown_data, days=days)
+
+
+@main_bp.route('/dump-raw')
+@login_required
+def dump_raw():
+    # We can still support the ?days=X parameter
+    days = request.args.get('days', default=7, type=int)    
+    rows = run_query(SQL_RAW_DATA, (f'{days} days',))
+    
+    if not rows:
+        return Response("No data found.", mimetype='text/plain')
+
+    markdown_data = format_activities_to_markdown(rows)
+    
+    # Return raw text directly to the browser
+    return Response(markdown_data, mimetype='text/plain')
 
 def export_to_csv(data):
     if not data:

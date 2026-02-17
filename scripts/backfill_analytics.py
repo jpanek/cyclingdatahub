@@ -23,7 +23,7 @@ def sync_local_analytics():
         JOIN activities act ON s.strava_id = act.strava_id
         LEFT JOIN activity_analytics a ON s.strava_id = a.strava_id
         WHERE 0=0
-        and a.strava_id IS NULL
+        AND (a.strava_id IS NULL OR a.training_stress_score IS NULL)
         AND act.type IN ('Ride', 'VirtualRide')
         --and s.strava_id = 17196834322
         order by act.start_date_local 

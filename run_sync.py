@@ -102,10 +102,12 @@ def run_sync(athlete_id, athlete_name="Athlete"):
             activities_to_process = activities[:10] if is_new_user else activities
 
             # ------------------------ Fetch Activity streams (details) -----------------------
-            if not REFRESH_HISTORY:
+            if not REFRESH_HISTORY or is_new_user:
                 print(f"\t🧬 Fetching high-res streams for {len(activities_to_process)} activities...")
 
                 from core.strava_api import sync_activity_streams
+
+                activities_to_process.sort(key=lambda x: x['start_date_local'])
 
                 for activity in activities_to_process:
                     strava_id = activity['id']
