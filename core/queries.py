@@ -111,11 +111,13 @@ SELECT
     a.strava_id, a.name, a.type, a.start_date_local, 
     a.distance / 1000.0 as distance_km, 
     a.moving_time, a.total_elevation_gain, a.average_watts, a.average_heartrate,
+    a.average_speed, a.max_speed,
     s.time_series, s.watts_series, s.heartrate_series, s.cadence_series, s.velocity_series, s.latlng_series,
     an.peak_5s, an.peak_1m, an.peak_5m, an.peak_20m, 
     an.peak_5s_hr, an.peak_1m_hr, an.peak_5m_hr, an.peak_20m_hr,
-    an.weighted_avg_power, an.ride_ftp, an.aerobic_decoupling,
+    an.weighted_avg_power, an.baseline_ftp, an.aerobic_decoupling,
     an.variability_index, an.efficiency_factor, an.intensity_score,
+    an.training_stress_score, -- Added this
     an.power_curve,
     a.map_polyline,
     s.altitude_series
@@ -189,7 +191,7 @@ SQL_CRAWLER_BACKLOG = """
 
 SQL_RAW_DATA = """
 SELECT 
-    t.athlete_id,
+t.athlete_id,
     t.strava_id,
     t.start_date_local::date as date,
     t.name,
@@ -199,12 +201,16 @@ SELECT
     aa.weighted_avg_power as "NP",
     t.average_heartrate as "Avg HR",
     t.max_heartrate as "Max HR",
-    aa.intensity_score as "TSS",
+    aa.intensity_score as "IF",
+    aa.training_stress_score as "TSS",
+    aa.baseline_ftp as "FTP Used",
     aa.aerobic_decoupling as "Decp",
-    aa.efficiency_factor as "Efficiency factor",
+    aa.efficiency_factor as "EF",
     aa.power_curve as "Power Curve"
 FROM activities t
 LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
-WHERE t.start_date_local >= CURRENT_DATE - INTERVAL %s
+WHERE 0=0
+and t.athlete_id = %s
+and t.start_date_local >= CURRENT_DATE - INTERVAL %s
 ORDER BY t.start_date_local DESC
 """

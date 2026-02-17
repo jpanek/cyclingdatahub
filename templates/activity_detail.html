@@ -1,3 +1,5 @@
+<!-- templates/activity_detail.html -->
+
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid mt-4">
@@ -61,30 +63,42 @@
         </div>
     </div>
 
-    <!-- Ride summary numbers -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card p-3 shadow-sm">
-                <strong>Distance</strong>
-                <span>{{ "%.1f"|format(activity.distance_km | default(0, true)) }} km</span>
+    <!-- Ride summary I: Distance, Avg Power, Avg HR, Elevation -->
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Distance</strong>
+                <span class="fw-bold">{{ "%.1f"|format(activity.distance_km | default(0, true)) }} km</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 shadow-sm">
-                <strong>Avg Power</strong>
-                <span>{{ (activity.average_watts | default(0, true)) | round | int }} W</span>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Avg Speed</strong>
+                <span class="fw-bold">{{ "%.1f"|format(activity.average_speed * 3.6 if activity.average_speed else 0) }} km/h</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 shadow-sm">
-                <strong>Avg HR</strong>
-                <span>{{ (activity.average_heartrate | default(0, true)) | round | int }} bpm</span>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Max Speed</strong>
+                <span class="fw-bold">{{ "%.1f"|format(activity.max_speed * 3.6 if activity.max_speed else 0) }} km/h</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 shadow-sm">
-                <strong>Elevation</strong>
-                <span>{{ (activity.total_elevation_gain | default(0, true)) | round | int }} m</span>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Avg Power</strong>
+                <span class="fw-bold">{{ (activity.average_watts | default(0, true)) | round | int }} W</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Avg HR</strong>
+                <span class="fw-bold text-danger">{{ (activity.average_heartrate | default(0, true)) | round | int }} bpm</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Elevation</strong>
+                <span class="fw-bold">{{ (activity.total_elevation_gain | default(0, true)) | round | int }} m</span>
             </div>
         </div>
     </div>
@@ -97,26 +111,41 @@
 
     <!-- Calulated power numbers -->
     <div class="row mt-4">
+
         <div class="col-md-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Power Metrics</div>
+                <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                    <span>Power Metrics</span>
+                    <span class="badge bg-primary-subtle text-primary border-0 small">FTP: {{ activity.baseline_ftp or '---' }}W</span>
+                </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="text-muted d-block small">Weighted Avg Power</label>
-                        <span class="fs-3 fw-bold text-primary">{{ activity.weighted_avg_power or 0 }} W</span>
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <label class="text-muted d-block small fw-bold text-uppercase">Weighted Avg</label>
+                            <span class="fs-3 fw-bold text-primary">{{ activity.weighted_avg_power or 0 }}<small class="fs-6">W</small></span>
+                        </div>
+                        <div class="col-6 border-start">
+                            <label class="text-muted d-block small fw-bold text-uppercase">Stress (TSS)</label>
+                            <span class="fs-3 fw-bold text-dark">{{ activity.training_stress_score or 0 }}</span>
+                        </div>
                     </div>
-                    <div class="row">
-                        <div class="col-6 mb-3">
+        
+                    <div class="row g-3">
+                        <div class="col-6">
                             <label class="text-muted d-block small">Variability (VI)</label>
-                            <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.variability_index or 1.0) }}</span>
+                            <span class="fw-bold">{{ "%.2f"|format(activity.variability_index or 1.0) }}</span>
                         </div>
-                        <div class="col-6 mb-3">
+                        <div class="col-6">
                             <label class="text-muted d-block small">Intensity (IF)</label>
-                            <span class="fs-5 fw-bold">{{ "%.2f"|format(activity.intensity_score or 0.0) }}</span>
+                            <span class="fw-bold">{{ "%.2f"|format(activity.intensity_score or 0.0) }}</span>
                         </div>
-                        <div class="col-12">
-                            <label class="text-muted d-block small">Aerobic Decoupling</label>
-                            <span class="fs-5 fw-bold {% if activity.aerobic_decoupling and activity.aerobic_decoupling > 5 %}text-danger{% else %}text-success{% endif %}">
+                        <div class="col-6">
+                            <label class="text-muted d-block small">Efficiency (EF)</label>
+                            <span class="fw-bold text-info">{{ "%.2f"|format(activity.efficiency_factor or 0.0) }}</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="text-muted d-block small">Decoupling</label>
+                            <span class="fw-bold {% if activity.aerobic_decoupling and activity.aerobic_decoupling > 5 %}text-danger{% else %}text-success{% endif %}">
                                 {{ "%.1f"|format(activity.aerobic_decoupling or 0.0) }}%
                             </span>
                         </div>
@@ -150,6 +179,7 @@
                 </div>
             </div>
         </div>
+
     </div>
 
     <!-- Chart: Power Curve -->

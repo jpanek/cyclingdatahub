@@ -4,7 +4,7 @@ import csv, io
 import json
 from flask import (
     Blueprint, render_template, request, Response, jsonify,
-    session, current_app
+    session, current_app, flash, redirect, url_for
 )
 from datetime import datetime, timedelta
 from config import LOG_PATH
@@ -170,6 +170,38 @@ def show_logs():
 
     return render_template('logs.html', content=content, log_type=log_type)
 
+@main_bp.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    athlete_id = session.get('athlete_id')
+    
+    # Handle the Reset/Clear action
+    if request.args.get('clear') == 'true':
+        from core.database import update_user_manual_settings
+        update_user_manual_settings(athlete_id, clear_manual=True)
+        flash("Manual overrides cleared. Reverting to system detection.", "info")
+        return redirect(url_for('main.settings'))
+
+    if request.method == 'POST':
+        # 1. Process the data
+        ftp = request.form.get('manual_ftp') or None
+        max_hr = request.form.get('manual_max_hr') or None
+        weight = request.form.get('weight') or None
+        
+        from core.database import update_user_manual_settings
+        update_user_manual_settings(athlete_id, ftp=ftp, max_hr=max_hr, weight=weight)
+        
+        # 2. Flash the message
+        flash("Settings updated successfully!", "success")
+        
+        # 3. REDIRECT back to the same page. 
+        return redirect(url_for('main.settings'))
+
+    # This part only runs on GET (initial load or after redirect)
+    user = run_query("SELECT * FROM users WHERE athlete_id = %s", (athlete_id,))[0]
+    return render_template('settings.html', user=user)
+
+
 @main_bp.route('/privacy')
 def privacy():
     return render_template('privacy.html')
@@ -177,8 +209,9 @@ def privacy():
 @main_bp.route('/dump')
 @login_required
 def dump():
+    athlete_id = session.get('athlete_id')
     days = request.args.get('days', default=7, type=int)    
-    rows = run_query(SQL_RAW_DATA, (f'{days} days',))
+    rows = run_query(SQL_RAW_DATA, (athlete_id, f'{days} days'))
     
     if not rows:
         return render_template('dump.html', markdown_data="No data found.", days=days)
@@ -191,9 +224,9 @@ def dump():
 @main_bp.route('/dump-raw')
 @login_required
 def dump_raw():
-    # We can still support the ?days=X parameter
-    days = request.args.get('days', default=7, type=int)    
-    rows = run_query(SQL_RAW_DATA, (f'{days} days',))
+    days = request.args.get('days', default=7, type=int)
+    athlete_id = session.get('athlete_id')
+    rows = run_query(SQL_RAW_DATA, (athlete_id, f'{days} days'))
     
     if not rows:
         return Response("No data found.", mimetype='text/plain')

@@ -1,0 +1,76 @@
+<!-- templates/settings.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4" style="max-width: 800px;">
+
+    <div class="d-flex align-items-center gap-2 mb-4">
+        <h4 class="mb-0 fw-bold">Account Settings</h4>
+        <span class="badge rounded-pill bg-light text-dark border">Profile</span>
+    </div>
+
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Manual Overrides</div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Manual FTP (Watts)</label>
+                            <input type="number" name="manual_ftp" class="form-control" 
+                                   value="{{ user.manual_ftp or '' }}" placeholder="e.g. 304">
+                            <div class="form-text text-muted" style="font-size: 0.75rem;">
+                                This will prioritize your custom FTP for TSS and Intensity calculations.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Manual Max Heart Rate (BPM)</label>
+                            <input type="number" name="manual_max_hr" class="form-control" 
+                                   value="{{ user.manual_max_hr or '' }}" placeholder="e.g. 190">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold small">Weight (kg)</label>
+                            <input type="number" step="0.1" name="weight" class="form-control" 
+                                   value="{{ user.weight or '' }}" placeholder="e.g. 75.5">
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <button type="submit" class="btn btn-dark shadow-sm px-4">Save Changes</button>
+                            
+                            <a href="{{ url_for('main.settings', clear='true') }}" 
+                               class="text-danger small text-decoration-none fw-bold"
+                               onclick="return confirm('Reset manual overrides? Will revert to auto-detected peaks.')">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card shadow-sm bg-light border-0">
+                <div class="card-header bg-transparent fw-bold border-0">System Detected Baselines</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted d-block small">Detected FTP</label>
+                        <span class="fs-4 fw-bold text-primary">{{ user.detected_ftp or '---' }} W</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted d-block small">Detected Max HR</label>
+                        <span class="fs-4 fw-bold text-danger">{{ user.detected_max_hr or '---' }} bpm</span>
+                    </div>
+                    <hr>
+                    <div class="text-muted small">
+                        <i class="bi bi-clock-history"></i> Last Updated:<br>
+                        {{ user.updated_at.strftime('%Y-%m-%d %H:%M') if user.updated_at else 'No sync data' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -288,6 +288,37 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
         cur.execute(sql, params)
     conn.commit()
 
+# core/database.py
+
+def update_user_manual_settings(athlete_id, ftp=None, max_hr=None, weight=None, clear_manual=False):
+    """
+    Updates or clears manual settings.
+    If clear_manual is True, it sets manual overrides to NULL.
+    """
+    if clear_manual:
+        query = """
+            UPDATE users 
+            SET manual_ftp = NULL, 
+                manual_max_hr = NULL, 
+                manual_ftp_updated_at = NULL,
+                updated_at = NOW()
+            WHERE athlete_id = %s
+        """
+        return run_query(query, (athlete_id,))
+    
+    # Otherwise, update as normal
+    query = """
+        UPDATE users 
+        SET manual_ftp = COALESCE(%s, manual_ftp), 
+            manual_max_hr = COALESCE(%s, manual_max_hr), 
+            weight = COALESCE(%s, weight),
+            manual_ftp_updated_at = CASE WHEN %s IS NOT NULL THEN NOW() ELSE manual_ftp_updated_at END,
+            manual_max_hr_updated_at = CASE WHEN %s IS NOT NULL THEN NOW() ELSE manual_max_hr_updated_at END, -- Added this
+            updated_at = NOW()
+        WHERE athlete_id = %s
+    """
+    return run_query(query, (ftp, max_hr, weight, ftp, max_hr, athlete_id))
+
 
 def delete_db_user_data(athlete_id):
     """
