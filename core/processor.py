@@ -122,23 +122,64 @@ def process_activity_metrics(strava_id, force=False):
     stale_limit = datetime.now() - timedelta(days=config.FTP_LOOKBACK_DAYS)
 
     # 5. Point-in-Time Baseline Logic
-    # TIER 1: Manual Override (Only if ride is newer than the setting)
+    # ---------------------------------------------------------------------------------------------------
+    # PRIO 1: Manual FTP exists and the ride is done after the setting:
     if act['manual_ftp'] and act['manual_ftp_updated_at'] and ride_date >= act['manual_ftp_updated_at']:
         active_ftp = act['manual_ftp']
+
+    # -----------------------------------------------------------------------------------------------
+    # PRIO 2: No Manual FTP provided
     else:
-        # TIER 2: Detected Peak & Decay
+        stale_limit = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) #last valid day
         is_ftp_stale = act['detected_ftp'] is not None and act['ftp_detected_at'] < stale_limit
         is_new_ftp_peak = act['detected_ftp'] is not None and ride_ftp_est > act['detected_ftp']
         
-        if act['detected_ftp'] is None or is_new_ftp_peak or is_ftp_stale:
+        # Max HR stale check (similar logic)
+        is_hr_stale = act['detected_max_hr'] is not None and act['hr_detected_at'] < stale_limit
+        current_max_hr = bests.get('peak_hr_1s') or 0 # Assuming 1s peak is max HR
+    
+        # --------------------------------------------------------------------------------------------------
+        # PRIO 2-A: Must update (Estimated FTP (from table) is missing, new peak was reached or its expired)
+        if act['detected_ftp'] is None or is_new_ftp_peak or is_ftp_stale or is_hr_stale:
+
+            # PRIO 2-A-1: FPT is expired
+            if (is_ftp_stale or is_hr_stale) and not is_new_ftp_peak:
+                # GRACEFUL DECAY
+                decay_sql = """
+                    SELECT MAX(peak_20m) * 0.95 as next_ftp, MAX(peak_1m_hr) as next_hr
+                    FROM activity_analytics aa
+                    JOIN activities a ON a.strava_id = aa.strava_id
+                    WHERE a.athlete_id = %s 
+                    AND a.start_date_local >= %s
+                    AND a.start_date_local <= %s
+                """
+                decay_res = run_query(decay_sql, (athlete_id, stale_limit, ride_date))
+                
+                if decay_res and decay_res[0]['next_ftp']:
+                    active_ftp = max(int(decay_res[0]['next_ftp']), ride_ftp_est)
+                    active_hr = max(int(decay_res[0]['next_hr']), current_max_hr)
+                else:
+                    active_ftp = ride_ftp_est or config.DEFAULT_FTP
+                    active_hr = current_max_hr or act['detected_max_hr']
+
+            # PRIO 2-A-2: FTP is missing (from table) or I have new FTP detected
+            else:
+                active_ftp = ride_ftp_est
+                active_hr = max(current_max_hr, act['detected_max_hr'] or 0)
+
+            # Update the User's detection profile for both
             run_query("""
-                UPDATE users SET detected_ftp = %s, ftp_source_strava_id = %s, ftp_detected_at = %s 
+                UPDATE users SET 
+                    detected_ftp = %s, ftp_source_strava_id = %s, ftp_detected_at = %s,
+                    detected_max_hr = %s, hr_source_strava_id = %s, hr_detected_at = %s
                 WHERE athlete_id = %s
-            """, (ride_ftp_est, strava_id, ride_date, athlete_id))
-            active_ftp = ride_ftp_est
+            """, (active_ftp, strava_id, ride_date, active_hr, strava_id, ride_date, athlete_id))
+
+        # -------------------------------------------------------------------------------------------
+        # PRIO 3: Use what we already have (or default)
         else:
-            # TIER 3: Existing Detection or Global Default
             active_ftp = act['detected_ftp'] or config.DEFAULT_FTP
+            active_hr = act['detected_max_hr'] or config.DEFAULT_MAX_HR
 
     # 6. Training Load Scores
     avg_pwr = np.mean(s['watts_series']) if s['watts_series'] else 0
