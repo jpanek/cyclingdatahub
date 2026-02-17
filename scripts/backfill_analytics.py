@@ -59,7 +59,7 @@ def sync_local_analytics():
         except Exception as e:
             print(f"Error processing activity {sid}: {e}")
 
-    print(f"\nFinished. Locally analyzed {processed} activities.")
+    print(f"Finished. Locally analyzed {processed} activities.")
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
