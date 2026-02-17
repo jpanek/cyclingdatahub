@@ -103,7 +103,8 @@ def process_activity_metrics(strava_id, force=False):
                 WHERE athlete_id = %s
             """, (int(p['ftp']), ride_date, p['hr'], ride_date, athlete_id))
             
-            act['detected_ftp'], act['detected_max_hr'] = int(p['ftp']), p['hr']
+            act['detected_ftp'] = int(p['ftp'] or 0)
+            act['detected_max_hr'] = int(p['hr'] or config.DEFAULT_MAX_HR)
             act['ftp_detected_at'], act['hr_detected_at'] = ride_date, ride_date
 
     # 3. Fetch Streams
@@ -121,7 +122,7 @@ def process_activity_metrics(strava_id, force=False):
     ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if bests.get('peak_power_20m') else 0
     stale_limit = datetime.now() - timedelta(days=config.FTP_LOOKBACK_DAYS)
 
-# 5. Point-in-Time Baseline Logic
+    # 5. Point-in-Time Baseline Logic
     #  ---------------------------------------------------------------------------------------------------
     # PRIO 0: Check for time-travel (Rewind context for historical ride processing)
     if act['ftp_detected_at'] and ride_date < act['ftp_detected_at']:
@@ -179,7 +180,7 @@ def process_activity_metrics(strava_id, force=False):
                 
                 if decay_res and decay_res[0]['next_ftp']:
                     active_ftp = max(int(decay_res[0]['next_ftp']), ride_ftp_est)
-                    active_hr = max(int(decay_res[0]['next_hr']), current_max_hr)
+                    active_hr = max(int(current_max_hr or 0), int(act['detected_max_hr'] or 0))
                 else:
                     active_ftp = ride_ftp_est or config.DEFAULT_FTP
                     active_hr = current_max_hr or act['detected_max_hr'] or config.DEFAULT_MAX_HR
@@ -199,7 +200,7 @@ def process_activity_metrics(strava_id, force=False):
         # PRIO 3: Steady State
         else:
             active_ftp = act['detected_ftp'] or config.DEFAULT_FTP
-            active_hr = act['detected_max_hr'] or config.DEFAULT_MAX_HR
+            active_hr = int(act['detected_max_hr'] or config.DEFAULT_MAX_HR)
 
     # 6. Training Load Scores
     avg_pwr = np.mean(s['watts_series']) if s['watts_series'] else 0

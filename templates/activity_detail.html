@@ -79,10 +79,24 @@
         </div>
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
+                <strong class="small text-muted">Duration</strong>
+                <span class="fw-bold">
+                    {% set sec = activity.moving_time | default(0) %}
+                    {% set hrs = (sec // 3600) %}
+                    {% set mins = (sec % 3600) // 60 %}
+                    {% set secs = (sec % 60) %}
+                    {% if hrs > 0 %}{{ hrs }}h {% endif %}{{ mins }}m {{ secs }}s
+                </span>
+            </div>
+        </div>
+        <!--
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Max Speed</strong>
                 <span class="fw-bold">{{ "%.1f"|format(activity.max_speed * 3.6 if activity.max_speed else 0) }} km/h</span>
             </div>
         </div>
+        -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Avg Power</strong>
