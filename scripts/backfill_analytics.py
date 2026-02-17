@@ -2,6 +2,7 @@
 
 import sys
 import os
+from datetime import datetime
 
 # Add root to path so we can import core
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -54,4 +55,10 @@ def sync_local_analytics():
     print(f"\nFinished. Locally analyzed {processed} activities.")
 
 if __name__ == "__main__":
+    print(f"\n{'='*60}")
+    print(f"Crawl Backfill Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     sync_local_analytics()
+
+    print(f"Crawl Backfill Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}\n")
