@@ -19,15 +19,22 @@ def sync_local_analytics():
     """
     # 1. Find IDs that have streams but are missing from the analytics table
     missing_analytics = run_query("""
-        SELECT s.strava_id 
-        FROM activity_streams s
-        JOIN activities act ON s.strava_id = act.strava_id
-        LEFT JOIN activity_analytics a ON s.strava_id = a.strava_id
-        WHERE 0=0
-        AND (a.strava_id IS NULL OR a.training_stress_score IS NULL)
-        AND act.type IN ('Ride', 'VirtualRide')
-        --and s.strava_id = 17196834322
-        order by act.start_date_local 
+            SELECT s.strava_id 
+            FROM activity_streams s
+            JOIN activities act ON s.strava_id = act.strava_id
+            LEFT JOIN activity_analytics a ON s.strava_id = a.strava_id
+            WHERE act.type IN ('Ride', 'VirtualRide')
+            AND (
+                a.strava_id IS NULL 
+                OR a.training_stress_score IS NULL
+                -- Always re-check the last 20 cycling activities found in the system
+                OR s.strava_id IN (
+                    SELECT strava_id FROM activities 
+                    WHERE type IN ('Ride', 'VirtualRide') 
+                    ORDER BY start_date_local DESC LIMIT 20
+                )
+            )
+            ORDER BY act.start_date_local ASC
     """)
 
     if not missing_analytics:
@@ -48,7 +55,7 @@ def sync_local_analytics():
             success = process_activity_metrics(sid, force=True)
             if success:
                 processed += 1
-                print(f"[{processed}/{count}] Processed activity: {sid}")
+                #print(f"[{processed}/{count}] Processed activity: {sid}")
         except Exception as e:
             print(f"Error processing activity {sid}: {e}")
 
@@ -56,9 +63,9 @@ def sync_local_analytics():
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print(f"Crawl Backfill Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Analytics recalc started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     sync_local_analytics()
 
-    print(f"Crawl Backfill Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Analytics recalc Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
