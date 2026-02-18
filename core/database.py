@@ -288,8 +288,6 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
         cur.execute(sql, params)
     conn.commit()
 
-# core/database.py
-
 def update_user_manual_settings(athlete_id, ftp=None, max_hr=None, weight=None, clear_manual=False):
     """
     Updates or clears manual settings.
@@ -318,7 +316,6 @@ def update_user_manual_settings(athlete_id, ftp=None, max_hr=None, weight=None, 
         WHERE athlete_id = %s
     """
     return run_query(query, (ftp, max_hr, weight, ftp, max_hr, athlete_id))
-
 
 def delete_db_user_data(athlete_id):
     """
@@ -351,3 +348,16 @@ def delete_db_user_data(athlete_id):
         return False
     finally:
         conn.close()
+
+def invalidate_analytics_from_date(athlete_id, start_date):
+    """
+    Flags all analytics records for an athlete as 'needs_recalculation' 
+    if they occur on or after the given start_date.
+    """
+    from core.queries import SQL_INVALIDATE_FORWARD
+    try:
+        # start_date should be a string 'YYYY-MM-DD HH:MM:SS'
+        run_query(SQL_INVALIDATE_FORWARD, (athlete_id, start_date))
+        print(f"  🚩 Ripple Effect: Invalidated analytics for {athlete_id} from {start_date} forward.")
+    except Exception as e:
+        print(f"  ⚠️ Failed to invalidate forward: {e}")

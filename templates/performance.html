@@ -3,9 +3,7 @@
 <div class="container-fluid mt-4">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex flex-column">
-            <h4 class="mb-1 fw-semibold">Ride Performance Trends</h4>
-        </div>
+        <h4 class="mb-1 fw-semibold">Ride Performance Trends</h4>
         
         <div class="btn-group shadow-sm" role="group" id="durationPicker">
             <button type="button" class="btn btn-outline-secondary" data-interval="5s">5s</button>
@@ -17,10 +15,10 @@
 
     <div class="card shadow-sm p-3 mb-4">
         <div class="card-header bg-white border-0 ps-0">
-            <h5 class="mb-0">Peak Power Progression</h5>
+            <h5 class="mb-0">Power Progression & FTP Baseline</h5>
         </div>
-        <div class="card-body p-0">
-            <div id="progressionChart" style="width: 100%; height: 450px;"></div>
+        <div class="card-body" style="height: 450px; position: relative;">
+            <canvas id="progressionChart"></canvas>
         </div>
     </div>
 
@@ -33,20 +31,17 @@
                         <thead class="table-light text-muted small">
                             <tr>
                                 <th class="text-start ps-3">Year</th>
-                                <th>5s</th>
-                                <th>1m</th>
-                                <th>5m</th>
-                                <th>20m</th>
+                                <th>5s</th><th>1m</th><th>5m</th><th>20m</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in yearly_bests %}
                             <tr>
                                 <td class="text-start ps-3 fw-bold">{{ row.year | int }}</td>
-                                <td>{{ "{:,}".format(row.p5s | int) if row.p5s else '-' }}</td>
-                                <td>{{ "{:,}".format(row.p1m | int) if row.p1m else '-' }}</td>
-                                <td>{{ "{:,}".format(row.p5m | int) if row.p5m else '-' }}</td>
-                                <td>{{ "{:,}".format(row.p20m | int) if row.p20m else '-' }}</td>
+                                <td>{{ row.p5s | int if row.p5s else '-' }}</td>
+                                <td>{{ row.p1m | int if row.p1m else '-' }}</td>
+                                <td>{{ row.p5m | int if row.p5m else '-' }}</td>
+                                <td>{{ row.p20m | int if row.p20m else '-' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -65,120 +60,136 @@
             </div>
         </div>
     </div>
-
 </div>
 
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 
 <script>
     const progressionData = {{ progression_json | safe }};
-    const yearlyBests = {{ yearly_bests | tojson }};
-    const allTimePeaks = {{ all_time_peaks | tojson if all_time_peaks else '{}' }};
-    
-    const renderProgression = (interval) => {
-        const data = progressionData[interval];
-        
-        const traceDots = {
-            x: data.map(d => d.x),
-            y: data.map(d => d.y),
-            name: 'Ride Peak',
-            mode: 'markers',
-            type: 'scatter',
-            marker: { color: 'rgba(54, 162, 235, 0.4)', size: 6 },
-            text: data.map(d => `${d.name}<br>${d.y}W`),
-            hoverinfo: 'text+x'
-        };
+    let mainChart;
 
-        const traceLine = {
-            x: data.map(d => d.x),
-            y: data.map(d => d.record),
-            text: data.map(d => {
-                const recordRide = data.filter(r => r.y === d.record && new Date(r.x) <= new Date(d.x)).pop();
-                return `Record: ${d.record}W<br>${recordRide ? recordRide.name : ''}`;
-            }),
-            name: 'Record to Date',
-            mode: 'lines',
-            line: { shape: 'hv', color: '#212529', width: 2.5 },
-            hoverinfo: 'text+x'
-        };
-
-        const traceSeasonal = {
-            x: data.map(d => d.x),
-            y: data.map(d => d.seasonal_record),
-             name: '30-Day Form',
-            mode: 'lines',
-            line: { shape: 'hv', color: '#212529', width: 2, dash: 'dot' },
-            hoverinfo: 'skip' // Keep it clean
-        };
-
-        const layout = {
-            margin: { t: 10, r: 20, l: 60, b: 40 },
-            showlegend: true,
-            xaxis: { type: 'date', gridcolor: '#f8f9fa' },
-            yaxis: { title: 'Watts', gridcolor: '#f8f9fa' },
-            hovermode: 'closest',
-            font: { family: 'inherit' }
-        };
-
-        Plotly.newPlot('progressionChart', [traceDots, traceLine , traceSeasonal], layout, {responsive: true, displayModeBar: false});
+    const truncate = (str, n) => {
+        return (str && str.length > n) ? str.slice(0, n - 1) + '...' : str;
     };
 
-    const renderRadar = () => {
-        if (yearlyBests.length === 0) return;
-        
-        const latest = yearlyBests[0];
-        const getPct = (val, key) => (val && allTimePeaks[key]) ? (val / allTimePeaks[key]) * 100 : 0;
+    const renderChart = (interval) => {
+        const ctx = document.getElementById('progressionChart').getContext('2d');
+        const dataSet = progressionData[interval];
 
-        const values = [
-            getPct(latest.p5s, '5s'),
-            getPct(latest.p1m, '1m'),
-            getPct(latest.p5m, '5m'),
-            getPct(latest.p20m, '20m'),
-            getPct(latest.p5s, '5s')
-        ];
+        if (mainChart) mainChart.destroy();
 
-        const rawWatts = [latest.p5s, latest.p1m, latest.p5m, latest.p20m, latest.p5s];
-
-        const data = [{
-            type: 'scatterpolar',
-            r: values,
-            theta: ['5s','1m','5m','20m', '5s'],
-            fill: 'toself',
-            name: latest.year.toString(),
-            fillcolor: 'rgba(54, 162, 235, 0.2)',
-            line: { color: 'rgba(54, 162, 235, 0.8)' },
-            customdata: rawWatts,
-            hovertemplate: '<b>%{theta}</b><br>Power: %{customdata}W<br>Pct of Best: %{r:.1f}%<extra></extra>'
-        }];
-
-        const layout = {
-            margin: { t: 40, r: 20, l: 60, b: 40 }, // Increased top margin for legend
-            showlegend: false, 
-            legend: {
-                orientation: "h",
-                yanchor: "bottom",
-                y: 1.02,
-                xanchor: "right",
-                x: 1
+        mainChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Peak Power',
+                        data: dataSet.map(d => ({ 
+                            x: d.x, 
+                            y: d.y, 
+                            id: d.id, 
+                            name: d.name,
+                            ftp: d.ftp 
+                        })),
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.4)',
+                        pointRadius: 5,
+                        pointHoverRadius: 9,
+                        showLine: false,
+                        zIndex: 2
+                    },
+                    {
+                        label: 'FTP',
+                        data: dataSet.map(d => ({ x: d.x, y: d.ftp })),
+                        borderColor: '#2d6a4f',
+                        backgroundColor: 'rgba(45, 106, 79, 0.05)',
+                        borderWidth: 3,
+                        stepped: 'before',
+                        fill: true,
+                        pointRadius: 0,
+                        zIndex: 1
+                    }
+                ]
             },
-            xaxis: { type: 'date', gridcolor: '#f8f9fa' },
-            yaxis: { title: 'Watts', gridcolor: '#f8f9fa' },
-            hovermode: 'closest',
-            font: { family: 'inherit' }
-        };
-
-        Plotly.newPlot('radarChart', data, layout, {displayModeBar: false});
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        type: 'time', 
+                        time: { unit: 'month' },
+                        grid: { display: false }
+                    },
+                    y: { 
+                        title: { display: true, text: 'Watts' },
+                        beginAtZero: false 
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: (context) => {
+                                const d = context.raw;
+                                if (context.dataset.label === 'Ride Peak') {
+                                    // Accessing name from the raw data object
+                                    const rideName = d.name || "Unknown Ride";
+                                    return [
+                                        ` Ride: ${truncate(rideName, 25)}`,
+                                        ` Power: ${d.y}W`
+                                    ];
+                                }
+                                return ` FTP Baseline: ${d.y}W`;
+                            }
+                        }
+                    }
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const firstEl = elements[0];
+                        // datasetIndex 0 is 'Ride Peak'
+                        if (firstEl.datasetIndex === 0) {
+                            const activityId = mainChart.data.datasets[0].data[firstEl.index].id;
+                            window.location.href = `/activity/${activityId}`;
+                        }
+                    }
+                }
+            }
+        });
     };
 
-    renderProgression('20m');
-    renderRadar();
+    // Initialize
+    renderChart('20m');
 
+    // Button Listener
     document.querySelectorAll('#durationPicker button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('#durationPicker button').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            renderProgression(e.target.dataset.interval);
+            renderChart(e.target.dataset.interval);
         });
     });
+</script>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+    const yearlyBests = {{ yearly_bests | tojson }};
+    const allTimePeaks = {{ all_time_peaks | tojson if all_time_peaks else '{}' }};
+
+    const renderRadar = () => {
+        if (!yearlyBests || yearlyBests.length === 0) return;
+        const latest = yearlyBests[0];
+        const getPct = (val, key) => (val && allTimePeaks[key]) ? (val / allTimePeaks[key]) * 100 : 0;
+        const values = [getPct(latest.p5s,'5s'), getPct(latest.p1m,'1m'), getPct(latest.p5m,'5m'), getPct(latest.p20m,'20m'), getPct(latest.p5s,'5s')];
+        const data = [{
+            type: 'scatterpolar', r: values, theta: ['5s','1m','5m','20m','5s'],
+            fill: 'toself', fillcolor: 'rgba(54, 162, 235, 0.2)', line: { color: 'rgba(54, 162, 235, 0.8)' }
+        }];
+        const layout = { margin: { t: 40, r: 20, l: 60, b: 40 }, polar: { radialaxis: { visible: true, range: [0, 100] } } };
+        Plotly.newPlot('radarChart', data, layout, {displayModeBar: false});
+    };
+    renderRadar();
 </script>
 {% endblock %}

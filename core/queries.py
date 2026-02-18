@@ -155,15 +155,20 @@ LIMIT 1;
 """
 
 SQL_POWER_PROGRESSION = """
-SELECT 
-    a.start_date_local::date as date, 
-    an.{col} as power,
-    a.name as activity_name,
-    a.strava_id
-FROM activity_analytics an
-JOIN activities a ON an.strava_id = a.strava_id
-WHERE a.athlete_id = %s AND an.{col} IS NOT NULL
-ORDER BY a.start_date_local ASC;
+    SELECT 
+        a.start_date_local as date, 
+        a.name as activity_name, 
+        a.strava_id,
+        aa.{col} as power,
+        aa.baseline_ftp
+    FROM activities a
+    JOIN activity_analytics aa ON a.strava_id = aa.strava_id
+    WHERE a.athlete_id = %s
+    AND aa.{col} IS NOT NULL 
+    AND aa.{col} > 0
+    and   a.type in ('Ride','VirtualRide')
+    AND a.start_date_local >= NOW() - INTERVAL '2 years'  
+    ORDER BY a.start_date_local ASC
 """
 
 SQL_YEARLY_PEAKS = """
@@ -198,6 +203,24 @@ SQL_CRAWLER_BACKLOG = """
     AND s.strava_id IS NULL
   ORDER BY a.start_date_local DESC
   LIMIT %s
+"""
+
+SQL_RECALC_QUEUE = """
+    SELECT strava_id, type 
+    FROM activities 
+    WHERE athlete_id = %s 
+      AND needs_recalculation = TRUE
+    ORDER BY start_date_local ASC
+    LIMIT %s
+"""
+
+SQL_INVALIDATE_FORWARD = """
+    UPDATE activities 
+    SET needs_recalculation = TRUE 
+    WHERE strava_id IN (
+        SELECT strava_id FROM activities 
+        WHERE athlete_id = %s AND start_date_local >= %s
+    )
 """
 
 SQL_RAW_DATA = """

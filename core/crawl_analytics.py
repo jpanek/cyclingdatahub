@@ -1,4 +1,4 @@
-# scripts/backfill_analytics.py
+# core/crawl_analytics.py
 
 import sys
 import os
@@ -13,12 +13,16 @@ from core.queries import SQL_RECALC_QUEUE
 from config import ANALYTICS_RECALC_SIZE
 
 
-def sync_local_analytics(batch_size_per_user = 50):
+def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
     """
     Loop through users, and recalculate all analytics that needs recalc up to given batch size.
     Strictly in chronological order.
     """
-    athletes = get_db_all_athletes()
+    if target_athlete_id:
+        # Just wrap the single ID in a list to keep the loop logic below
+        athletes = [{'athlete_id': target_athlete_id, 'firstname': 'Targeted'}]
+    else:
+        athletes = get_db_all_athletes()
 
     if not athletes:
         print(" No users found in database")

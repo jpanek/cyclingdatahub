@@ -33,9 +33,19 @@ def sync_single_activity(athlete_id, activity_id):
             from core.strava_api import sync_activity_streams
             sync_activity_streams(conn, athlete_id, activity_id)
             
-            if activity.get('type') in ['Ride', 'VirtualRide']:
-                process_activity_metrics(activity_id, force=True)
-                print(f"\t✨ Analytics metrics recalculated for {activity_id}")
+            #5. process analytics
+            process_activity_metrics(activity_id, force=True)
+            print(f"\t✨ Analytics metrics recalculated for {activity_id}")
+
+            #6. Invalidate all activity analytics afterwards
+            from core.database import invalidate_analytics_from_date
+            ride_date = activity.get('start_date_local')
+            invalidate_analytics_from_date(athlete_id,ride_date)
+
+            #7. actually run the analytics crawl:
+            from core.crawl_analytics import sync_local_analytics
+            sync_local_analytics(batch_size_per_user=50,target_athlete_id=athlete_id)
+
         else:
             print(f"\t⚠️ Could not find activity {activity_id} on Strava.")
 
@@ -108,24 +118,29 @@ def run_sync(athlete_id, athlete_name="Athlete"):
                 from core.strava_api import sync_activity_streams
 
                 activities_to_process.sort(key=lambda x: x['start_date_local'])
+                earliest_date = activities[0]['start_date_local']
+
 
                 for activity in activities_to_process:
                     strava_id = activity['id']
-                    activity_type = activity.get('type')
                     try:
                         # 1. Fetch the activity streams (details)
                         sync_activity_streams(conn,athlete_id,strava_id)
                         print(f"\t  ✨ Activity stream saved for {strava_id}")
 
-                        if activity_type in ['Ride','VirtualRide']:
-                            # 2. Trigger calculation of metrics:
-                            process_activity_metrics(strava_id, force=True)
-                            print(f"\t  ✨ Analyticsl metrics calculated for {strava_id}")
-                        else:
-                            print(f"\t  ⏩ Skipping analytics for non-cycling activity: {activity_type}")
+                        process_activity_metrics(strava_id, force=True)
+                        print(f"\t  ✨ Analyticsl metrics calculated for {strava_id}")
 
                     except Exception as stream_error:
                         print(f"\t  ⚠️ Could not sync streams for {strava_id}: {stream_error}")
+                
+
+                from core.database import invalidate_analytics_from_date
+                invalidate_analytics_from_date(athlete_id, earliest_date)
+                
+                from core.crawl_analytics import sync_local_analytics
+                sync_local_analytics(batch_size_per_user=20, target_athlete_id=athlete_id)
+                print(f"\t🚩 Ripple effect finished for new batch.")
             # ---------------------------------------------------------------------------------
         else:
             print("\t∅ No new activities to load.")

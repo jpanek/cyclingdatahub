@@ -145,6 +145,7 @@ def get_performance_summary(athlete_id):
         for row in raw_data:
             pwr = row['power'] or 0
             ride_date = row['date']
+            baseline = row.get('baseline_ftp') or 0
             
             # 1. Lifetime Record
             if pwr > current_max:
@@ -164,6 +165,7 @@ def get_performance_summary(athlete_id):
                 'y': pwr,
                 'record': current_max,
                 'seasonal_record': seasonal_max,
+                'ftp': baseline,
                 'name': row['activity_name'],
                 'id': str(row['strava_id'])
             })

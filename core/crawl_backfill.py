@@ -47,15 +47,12 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
             conn = get_db_connection()
             for row in to_process:
                 s_id = row['strava_id']
-                a_type = row['type']
                 a_date = row['start_date_local'].strftime('%Y-%m-%d')
                 sync_activity_streams(conn, a_id, s_id)
 
-                if a_type in ('Ride','VirtualRide'):
-                    process_activity_metrics(s_id, force=True)
-                    print(f"\t[{a_date}] Stream + Metrics synced for {a_type} ({s_id})")
-                else:
-                    print(f"\t[{a_date}] Stream only synced for {a_type} ({s_id})")
+                from core.database import invalidate_analytics_from_date
+                invalidate_analytics_from_date(a_id, a_date)
+
                 time.sleep(sleep_time) # Pause between activities
         except Exception as user_err:
             print(f"⚠️ Error processing {name}: {user_err}")

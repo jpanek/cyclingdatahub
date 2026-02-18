@@ -51,10 +51,32 @@ def process_activity_metrics(strava_id, force=False):
     Calculates high-res metrics (TSS, IF, EF) and manages adaptive fitness baselines.
     Uses a tiered strategy: Manual Override (Date-Aware) > Detected Peak > Default.
     """
+
+    # ---------------------------------------------------------------------------------
+    # STEP 00: we need to check if the power data even exists:
+    stream_data = run_query(
+        "SELECT watts_series, heartrate_series, altitude_series, time_series FROM activity_streams WHERE strava_id = %s", 
+        (strava_id,)
+    )
+    if not stream_data:
+        # No Streams, no analytics possible
+        return True
+    s = stream_data[0]
+    if not s['watts_series'] or len(s['watts_series']) == 0:
+        # Optional: Add HR check here later if you want HR-based analytics
+        return True
+    # 3. Fetch Streams
+    activity_data = {'watts_series': s['watts_series'], 'heartrate_series': s['heartrate_series']}
+    
+    # ---------------------------------------------------------------------------------
+    # STEP 01: Do not calcualte if already exists (unless forced)
     if not force:
         exists = run_query("SELECT 1 FROM activity_analytics WHERE strava_id = %s", (strava_id,))
         if exists: return False
 
+    # ---------------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------------
+    #                       ACTUAL CALCULATIONS START:
     # 1. Fetch User & Activity Context (Including manual timestamp)
     sql_init = """
         SELECT a.athlete_id, a.start_date_local, 
@@ -107,22 +129,18 @@ def process_activity_metrics(strava_id, force=False):
             act['detected_max_hr'] = int(p['hr'] or config.DEFAULT_MAX_HR)
             act['ftp_detected_at'], act['hr_detected_at'] = ride_date, ride_date
 
-    # 3. Fetch Streams
-    stream_data = run_query("SELECT * FROM activity_streams WHERE strava_id = %s", (strava_id,))
-    if not stream_data: return False
-    s = stream_data[0]
-    activity_data = {'watts_series': s['watts_series'], 'heartrate_series': s['heartrate_series']}
 
+    #  ---------------------------------------------------------------------------------------------------
     # 4. Core Calculations
     weighted_pwr = calculate_weighted_power(s['watts_series'])
     bests = get_interval_bests(activity_data)
-    vam = calculate_vam(s['temp_series'], s['time_series'])
+    vam = calculate_vam(s['altitude_series'], s['time_series'])
     decoupling = calculate_aerobic_decoupling(s['watts_series'], s['heartrate_series'])
 
     ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if bests.get('peak_power_20m') else 0
     stale_limit = datetime.now() - timedelta(days=config.FTP_LOOKBACK_DAYS)
 
-    # 5. Point-in-Time Baseline Logic
+    # 5. FTP logic
     #  ---------------------------------------------------------------------------------------------------
     # PRIO 0: Check for time-travel (Rewind context for historical ride processing)
     if act['ftp_detected_at'] and ride_date < act['ftp_detected_at']:
@@ -197,11 +215,12 @@ def process_activity_metrics(strava_id, force=False):
                 WHERE athlete_id = %s
             """, (active_ftp, strava_id, ride_date, active_hr, strava_id, ride_date, athlete_id))
 
-        # PRIO 3: Steady State
+        # PRIO 3: Use the FTP I alraedy have
         else:
             active_ftp = act['detected_ftp'] or config.DEFAULT_FTP
             active_hr = int(act['detected_max_hr'] or config.DEFAULT_MAX_HR)
 
+    #  ---------------------------------------------------------------------------------------------------
     # 6. Training Load Scores
     avg_pwr = np.mean(s['watts_series']) if s['watts_series'] else 0
     avg_hr = np.mean(s['heartrate_series']) if s['heartrate_series'] else 0
