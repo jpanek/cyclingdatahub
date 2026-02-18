@@ -1,7 +1,7 @@
 # run_sync.py
 
 from datetime import datetime
-from config import REFRESH_USER_PROFILE, REFRESH_HISTORY
+from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, ANALYTICS_RECALC_SIZE
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
     get_db_latest_timestamp_for_athlete, save_db_activities,
@@ -44,7 +44,7 @@ def sync_single_activity(athlete_id, activity_id):
 
             #7. actually run the analytics crawl:
             from core.crawl_analytics import sync_local_analytics
-            sync_local_analytics(batch_size_per_user=50,target_athlete_id=athlete_id)
+            sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,target_athlete_id=athlete_id)
 
         else:
             print(f"\t⚠️ Could not find activity {activity_id} on Strava.")
@@ -139,7 +139,7 @@ def run_sync(athlete_id, athlete_name="Athlete"):
                 invalidate_analytics_from_date(athlete_id, earliest_date)
                 
                 from core.crawl_analytics import sync_local_analytics
-                sync_local_analytics(batch_size_per_user=20, target_athlete_id=athlete_id)
+                sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE, target_athlete_id=athlete_id)
                 print(f"\t🚩 Ripple effect finished for new batch.")
             # ---------------------------------------------------------------------------------
         else:
