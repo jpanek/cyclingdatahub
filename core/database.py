@@ -288,6 +288,26 @@ def save_db_activity_stream(conn, activity_id, streams_dict):
         cur.execute(sql, params)
     conn.commit()
 
+def save_db_daily_tss(athlete_id, ride_date):
+    """
+    Standalone helper to ensure the daily ledger reflects the SUM of TSS 
+    for all activities on a specific date.
+    """
+    sql_daily_tss = """
+        INSERT INTO athlete_daily_metrics (athlete_id, date, tss)
+        VALUES (%s, %s::date, (
+            SELECT COALESCE(SUM(aa.training_stress_score), 0)
+            FROM activities a
+            JOIN activity_analytics aa ON a.strava_id = aa.strava_id
+            WHERE a.athlete_id = %s 
+              AND a.start_date_local::date = %s::date
+        ))
+        ON CONFLICT (athlete_id, date) DO UPDATE SET
+            tss = EXCLUDED.tss;
+    """
+    # Note: We pass the date and athlete ID twice to satisfy the subquery and the insert
+    run_query(sql_daily_tss, (athlete_id, ride_date, athlete_id, ride_date))
+
 def update_user_manual_settings(athlete_id, ftp=None, max_hr=None, weight=None, clear_manual=False):
     """
     Updates or clears manual settings.

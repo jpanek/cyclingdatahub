@@ -209,7 +209,7 @@ SQL_CRAWLER_BACKLOG = """
 """
 
 SQL_RECALC_QUEUE = """
-    SELECT strava_id, type 
+    SELECT strava_id, type, start_date_local
     FROM activities 
     WHERE athlete_id = %s 
       AND needs_recalculation = TRUE

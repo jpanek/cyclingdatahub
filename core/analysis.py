@@ -4,6 +4,69 @@ import numpy as np
 from core.database import run_query
 from datetime import datetime, timedelta
 
+
+def sync_daily_fitness(athlete_id, start_date):
+    """
+    Re-computes CTL/ATL/TSB from start_date forward to today.
+    Fills in gaps for days with 0 TSS.
+    """
+    # 1. Get the 'Seed' values from the day before the change
+    seed_sql = """
+        SELECT ctl, atl FROM athlete_daily_metrics 
+        WHERE athlete_id = %s AND date < %s 
+        ORDER BY date DESC LIMIT 1
+    """
+    seed = run_query(seed_sql, (athlete_id, start_date))
+    
+    current_ctl = seed[0]['ctl'] if seed else 0.0
+    current_atl = seed[0]['atl'] if seed else 0.0
+    
+    # 2. Fetch all known TSS from rides and a generated calendar of days
+    # This ensures we have a row for every single day, even rest days.
+    calendar_sql = """
+        WITH calendar AS (
+            SELECT generate_series(%s::date, NOW()::date, '1 day')::date AS day
+        )
+        SELECT 
+            c.day,
+            COALESCE(SUM(aa.training_stress_score), 0) as daily_tss
+        FROM calendar c
+        LEFT JOIN activities a ON a.start_date_local::date = c.day AND a.athlete_id = %s
+        LEFT JOIN activity_analytics aa ON a.strava_id = aa.strava_id
+        GROUP BY c.day
+        ORDER BY c.day
+    """
+    daily_tss_data = run_query(calendar_sql, (start_date, athlete_id))
+
+    # 3. Process the chain
+    results = []
+    for row in daily_tss_data:
+        tss = float(row['daily_tss'])
+        
+        # Exponentially Weighted Moving Average Formulas
+        # CTL (42 day) | ATL (7 day)
+        current_ctl = current_ctl + (tss - current_ctl) * (1 - np.exp(-1/42))
+        current_atl = current_atl + (tss - current_atl) * (1 - np.exp(-1/7))
+        current_tsb = current_ctl - current_atl
+        
+        results.append((
+            athlete_id, row['day'], tss, 
+            round(current_ctl, 2), round(current_atl, 2), round(current_tsb, 2)
+        ))
+
+    # 4. Batch Save
+    save_sql = """
+        INSERT INTO athlete_daily_metrics (athlete_id, date, tss, ctl, atl, tsb)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (athlete_id, date) DO UPDATE SET
+            tss = EXCLUDED.tss, ctl = EXCLUDED.ctl, 
+            atl = EXCLUDED.atl, tsb = EXCLUDED.tsb
+    """
+    for record in results:
+        run_query(save_sql, record)
+        
+    return len(results)
+
 def calculate_weighted_power(watts_series):
     """Calculates xPower / Normalized Power equivalent."""
     if not watts_series or len(watts_series) < 30:

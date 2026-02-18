@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.database import get_db_connection, get_db_all_athletes, run_query
 from core.processor import process_activity_metrics
+from core.analysis import sync_daily_fitness
 from core.queries import SQL_RECALC_QUEUE
 from config import ANALYTICS_RECALC_SIZE
 
@@ -41,9 +42,11 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
         print(f"\t{name} ({a_id}): Recomputing {len(to_process)} activities...")
 
         processed = 0
+        first_date_in_batch = None
         try:
             for row in to_process:
                 sid = row['strava_id']
+                ride_date = row['start_date_local']
                 
                 # 3. Run the processor (FTP foundation)
                 success = process_activity_metrics(sid, force=True)
@@ -55,6 +58,12 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
                         (sid,)
                     )
                     processed += 1
+                    if not first_date_in_batch or ride_date < first_date_in_batch:
+                        first_date_in_batch = ride_date
+            
+            if processed > 0 and first_date_in_batch:
+                print(f"\t✨ Batch complete. Syncing fitness from {first_date_in_batch.date()}...")
+                sync_daily_fitness(a_id, first_date_in_batch)
 
         except Exception as user_err:
             print(f"  ⚠️ Error processing {name}: {user_err}")
