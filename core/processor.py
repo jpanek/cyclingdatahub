@@ -79,7 +79,7 @@ def process_activity_metrics(strava_id, force=False):
     #                       ACTUAL CALCULATIONS START:
     # 1. Fetch User & Activity Context (Including manual timestamp)
     sql_init = """
-        SELECT a.athlete_id, a.start_date_local, 
+        SELECT a.athlete_id, a.type, a.start_date_local, 
                u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
                u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
                u.manual_ftp_updated_at
@@ -94,17 +94,22 @@ def process_activity_metrics(strava_id, force=False):
     athlete_id = act['athlete_id']
     ride_date = act['start_date_local']
 
+    if act['type'] not in config.ANALYTICS_ACTIVITIES:
+        #we'll only calculate analytics for cycling activities:
+        return True
+
     # 2. TIERED PRIMING
     if act['detected_ftp'] is None:
         prime_sql = """
-            SELECT MAX(peak_20m) * 0.95 as ftp, MAX(peak_1m_hr) as hr
-            FROM activity_analytics aa
-            JOIN activities a ON a.strava_id = aa.strava_id
-            WHERE a.athlete_id = %s 
-            AND a.start_date_local >= (%s::date - make_interval(days => %s))
-            AND a.start_date_local < %s::date
+            SELECT MAX(weighted_average_watts) as ftp, MAX(max_heartrate) as hr
+            FROM activities
+            WHERE athlete_id = %s 
+              AND type = ANY(%s) 
+              AND start_date_local >= (%s::date - make_interval(days => %s))
+              AND start_date_local < %s::date
+              AND weighted_average_watts > 0
         """
-        p_res = run_query(prime_sql, (athlete_id, ride_date, config.FTP_LOOKBACK_DAYS, ride_date))
+        p_res = run_query(prime_sql, (athlete_id, config.ANALYTICS_ACTIVITIES, ride_date, config.FTP_LOOKBACK_DAYS, ride_date))
         
         if not p_res or not p_res[0]['ftp']:
             fallback_sql = """
@@ -145,16 +150,18 @@ def process_activity_metrics(strava_id, force=False):
     # PRIO 0: Check for time-travel (Rewind context for historical ride processing)
     if act['ftp_detected_at'] and ride_date < act['ftp_detected_at']:
          hist_sql = """
-            SELECT MAX(peak_20m) * 0.95 as hist_ftp, 
-                   MAX(peak_1m_hr) as hist_hr, 
-                   MAX(a.start_date_local) as hist_date
-            FROM activity_analytics aa
-            JOIN activities a ON a.strava_id = aa.strava_id
-            WHERE a.athlete_id = %s 
-            AND a.start_date_local >= (%s::date - make_interval(days => %s))
-            AND a.start_date_local < %s::date
+            SELECT MAX(weighted_average_watts) as hist_ftp, 
+                   MAX(max_heartrate) as hist_hr, 
+                   MAX(start_date_local) as hist_date
+            FROM activities
+            WHERE athlete_id = %s 
+              AND type = ANY(%s)
+              AND start_date_local >= (%s::date - make_interval(days => %s))
+              AND start_date_local < %s::date
+              AND weighted_average_watts > 0
          """
-         h_res = run_query(hist_sql, (athlete_id, ride_date, config.FTP_LOOKBACK_DAYS, ride_date))
+         h_res = run_query(hist_sql, (athlete_id, config.ANALYTICS_ACTIVITIES, ride_date, config.FTP_LOOKBACK_DAYS, ride_date))
+
          if h_res and h_res[0]['hist_ftp']:
              act['detected_ftp'] = int(h_res[0]['hist_ftp'])
              act['detected_max_hr'] = h_res[0]['hist_hr']
@@ -187,14 +194,14 @@ def process_activity_metrics(strava_id, force=False):
             if (is_ftp_stale or is_hr_stale) and not is_new_ftp_peak:
                 # GRACEFUL DECAY
                 decay_sql = """
-                    SELECT MAX(peak_20m) * 0.95 as next_ftp, MAX(peak_1m_hr) as next_hr
-                    FROM activity_analytics aa
-                    JOIN activities a ON a.strava_id = aa.strava_id
-                    WHERE a.athlete_id = %s 
-                    AND a.start_date_local >= %s
-                    AND a.start_date_local <= %s
+                    SELECT MAX(weighted_average_watts) as next_ftp, MAX(max_heartrate) as next_hr
+                    FROM activities
+                    WHERE athlete_id = %s 
+                      AND type = ANY(%s)
+                      AND start_date_local >= %s
+                      AND start_date_local <= %s
                 """
-                decay_res = run_query(decay_sql, (athlete_id, stale_limit, ride_date))
+                decay_res = run_query(decay_sql, (athlete_id, config.ANALYTICS_ACTIVITIES, stale_limit, ride_date))
                 
                 if decay_res and decay_res[0]['next_ftp']:
                     active_ftp = max(int(decay_res[0]['next_ftp']), ride_ftp_est)
