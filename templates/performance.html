@@ -5,11 +5,21 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-1 fw-semibold">Ride Performance Trends</h4>
         
-        <div class="btn-group shadow-sm" role="group" id="durationPicker">
-            <button type="button" class="btn btn-outline-secondary" data-interval="5s">5s</button>
-            <button type="button" class="btn btn-outline-secondary" data-interval="1m">1m</button>
-            <button type="button" class="btn btn-outline-secondary" data-interval="5m">5m</button>
-            <button type="button" class="btn btn-outline-secondary active" data-interval="20m">20m</button>
+        <div class="d-flex gap-3 align-items-center">
+            <select class="form-select form-select-sm shadow-sm" id="historyFilter" style="width: 150px;">
+                <option value="6" {% if current_filter == 6 %}selected{% endif %}>Last 6 Months</option>
+                <option value="12" {% if current_filter == 12 %}selected{% endif %}>Last Year</option>
+                <option value="24" {% if current_filter == 24 %}selected{% endif %}>Last 2 Years</option>
+                <option value="36" {% if current_filter == 36 %}selected{% endif %}>Last 3 Years</option>
+                <option value="0" {% if current_filter == 0 %}selected{% endif %}>Full History</option>
+            </select>
+    
+            <div class="btn-group shadow-sm" role="group" id="durationPicker">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="5s">5s</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="1m">1m</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="5m">5m</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary active" data-interval="20m">20m</button>
+            </div>
         </div>
     </div>
 
@@ -108,6 +118,8 @@
                         stepped: 'before',
                         fill: true,
                         pointRadius: 0,
+                        pointHitRadius: 20,
+                        pointHoverRadius: 0,
                         zIndex: 1
                     }
                 ]
@@ -133,7 +145,7 @@
                         callbacks: {
                             label: (context) => {
                                 const d = context.raw;
-                                if (context.dataset.label === 'Ride Peak') {
+                                if (context.dataset.label === 'Peak Power') {
                                     // Accessing name from the raw data object
                                     const rideName = d.name || "Unknown Ride";
                                     return [
@@ -170,6 +182,14 @@
             e.target.classList.add('active');
             renderChart(e.target.dataset.interval);
         });
+    });
+</script>
+
+<script>
+    // Add this to your existing scripts
+    document.getElementById('historyFilter').addEventListener('change', function() {
+        const months = this.value;
+        window.location.href = `/performance?months=${months}`;
     });
 </script>
 

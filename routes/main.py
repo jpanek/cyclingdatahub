@@ -95,19 +95,20 @@ def activity_detail(strava_id):
 @main_bp.route('/performance')
 @login_required
 def performance_dashboard():
-    """
-    Renders the high-level performance metrics, including 
-    power progression and yearly bests.
-    """
     athlete_id = session.get('athlete_id')
-    # get_performance_summary returns the dict with 'progression' and 'yearly_bests'
-    data = get_performance_summary(athlete_id)
+    
+    # Get 'months' from URL, default to 12
+    months = request.args.get('months', default=12, type=int)
+    
+    # Update your get_performance_summary to accept the months parameter
+    data = get_performance_summary(athlete_id, months_limit=months)
 
     return render_template(
         'performance.html',
         progression_json=json.dumps(data['progression']),
         yearly_bests=data['yearly_bests'],
-        all_time_peaks=data['all_time_peaks']
+        all_time_peaks=data['all_time_peaks'],
+        current_filter=months # Pass it back to keep the dropdown synced
     )
 
 @main_bp.route('/activities')

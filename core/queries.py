@@ -166,8 +166,11 @@ SQL_POWER_PROGRESSION = """
     WHERE a.athlete_id = %s
     AND aa.{col} IS NOT NULL 
     AND aa.{col} > 0
-    and   a.type in ('Ride','VirtualRide')
-    AND a.start_date_local >= NOW() - INTERVAL '2 years'  
+    AND a.type IN ('Ride','VirtualRide')
+    AND (
+        %s = 0 OR 
+        a.start_date_local >= NOW() - make_interval(months => %s)
+    )
     ORDER BY a.start_date_local ASC
 """
 

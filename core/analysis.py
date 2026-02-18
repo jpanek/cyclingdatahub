@@ -113,79 +113,68 @@ def get_best_power_curve(athlete_id, months=12):
                 
     return overall_best
 
-def get_performance_summary(athlete_id):
+def get_performance_summary(athlete_id, months_limit=12):
     from core.queries import SQL_POWER_PROGRESSION, SQL_YEARLY_PEAKS
     from core.database import run_query
     from datetime import datetime, timedelta
     
     intervals = {'5s': 'peak_5s', '1m': 'peak_1m', '5m': 'peak_5m', '20m': 'peak_20m'}
+    all_progression, all_time_peaks, recent_peaks = {}, {}, {}
     
-    all_progression = {}
-    all_time_peaks = {}
-    recent_peaks = {} # This is what was missing
-    
-    # Global cutoff for the Radar Chart (last 90 days from today)
     today = datetime.now().date()
-    global_recent_cutoff = today - timedelta(days=10)
+    # Radar chart looks at last 30 days of actual data
+    global_recent_cutoff = today - timedelta(days=30)
     
     for label, col in intervals.items():
         query = SQL_POWER_PROGRESSION.replace("{col}", col)
-        raw_data = run_query(query, (athlete_id,))
+        # PASS TWICE: Once for the '0' check, once for the interval
+        raw_data = run_query(query, (athlete_id, months_limit, months_limit))
         
-        # Ensure dates are date objects and sorted
+        if not raw_data:
+            all_progression[label], all_time_peaks[label], recent_peaks[label] = [], 0, 0
+            continue
+
+        # Convert dates once
         for r in raw_data:
-            if hasattr(r['date'], 'date'):
-                r['date'] = r['date'].date()
+            if hasattr(r['date'], 'date'): r['date'] = r['date'].date()
         
-        raw_data = sorted(raw_data, key=lambda x: x['date'])
+        raw_data.sort(key=lambda x: x['date'])
         
         current_max = 0
         processed = []
         
-        for row in raw_data:
+        for i, row in enumerate(raw_data):
             pwr = row['power'] or 0
             ride_date = row['date']
-            baseline = row.get('baseline_ftp') or 0
             
-            # 1. Lifetime Record
-            if pwr > current_max:
-                current_max = pwr
+            if pwr > current_max: current_max = pwr
             
-            # 2. Rolling 90-Day Record for the CHART line
+            # Efficient Seasonal Max: Look back in the already sorted raw_data
             window_start = ride_date - timedelta(days=30)
-            seasonal_vals = [
-                r['power'] for r in raw_data 
-                if r['power'] is not None 
-                and window_start <= r['date'] <= ride_date
-            ]
-            seasonal_max = max(seasonal_vals) if seasonal_vals else 0
+            seasonal_max = 0
+            # Only iterate backwards until we leave the 30-day window
+            for j in range(i, -1, -1):
+                if raw_data[j]['date'] < window_start: break
+                val = raw_data[j]['power'] or 0
+                if val > seasonal_max: seasonal_max = val
 
             processed.append({
                 'x': ride_date.isoformat(),
                 'y': pwr,
-                'record': current_max,
                 'seasonal_record': seasonal_max,
-                'ftp': baseline,
+                'ftp': row.get('baseline_ftp') or 0,
                 'name': row['activity_name'],
                 'id': str(row['strava_id'])
             })
             
         all_progression[label] = processed
         all_time_peaks[label] = current_max
-        
-        # 3. Final "Current" Peak for the Radar Chart
-        # Look at the last 90 days from TODAY across all data
-        final_seasonal_vals = [
-            r['power'] for r in raw_data 
-            if r['power'] is not None and r['date'] > global_recent_cutoff
-        ]
-        recent_peaks[label] = max(final_seasonal_vals) if final_seasonal_vals else 0
+        recent_peaks[label] = max([r['power'] for r in raw_data if r['date'] >= global_recent_cutoff] or [0])
 
     yearly_bests = run_query(SQL_YEARLY_PEAKS, (athlete_id,))
-        
     return {
         'progression': all_progression,
         'yearly_bests': yearly_bests,
         'all_time_peaks': all_time_peaks,
-        'recent_peaks': recent_peaks # Fixed NameError
+        'recent_peaks': recent_peaks
     }
