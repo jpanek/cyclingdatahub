@@ -207,6 +207,33 @@ def settings():
     user = results[0]
     return render_template('settings.html', user=user)
 
+@main_bp.route('/fitness')
+@login_required
+def fitness_dashboard():
+    athlete_id = session.get('athlete_id')
+    days = request.args.get('days', default=90, type=int)
+    
+    # Use ::float to prevent Decimal issues
+    sql = """
+        SELECT 
+            to_char(date, 'YYYY-MM-DD') as d,
+            round(tss::numeric, 1)::float as tss,
+            round(ctl::numeric, 1)::float as ctl,
+            round(atl::numeric, 1)::float as atl,
+            round(tsb::numeric, 1)::float as tsb
+        FROM athlete_daily_metrics
+        WHERE athlete_id = %s
+        ORDER BY date DESC
+        LIMIT %s
+    """
+    rows = run_query(sql, (athlete_id, days))
+    rows.reverse() 
+
+    return render_template(
+        'fitness.html',
+        fitness_json=json.dumps(rows), # Ensure this variable matches the template
+        current_days=days
+    )
 
 @main_bp.route('/privacy')
 def privacy():

@@ -1,0 +1,171 @@
+<!-- templates/fitness.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Subtle UI Overrides */
+    .btn-subtle { background: #f8f9fa; border: 1px solid #e9ecef; color: #6c757d; transition: all 0.2s; }
+    .btn-subtle:hover { background: #f1f3f5; color: #495057; }
+    .btn-subtle.active { background: #6c757d; border-color: #6c757d; color: white; }
+    
+    .info-icon { width: 14px; height: 14px; color: #adb5bd; margin-left: 4px; cursor: help; vertical-align: middle; }
+    .card-stat { border-radius: 12px; border: 1px solid #f1f3f5; transition: transform 0.2s; }
+    .card-stat:hover { transform: translateY(-2px); }
+    .text-value { font-weight: 700; letter-spacing: -1px; }
+    
+    /* Tooltip styling for better readability */
+    .tooltip-inner { text-align: left !important; padding: 10px !important; }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="mb-0">Fitness & Freshness</h2>
+            <p class="text-muted small mb-0">Performance management based on TSS decay</p>
+        </div>
+        <div class="btn-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+            <a href="?days=30" class="btn btn-sm btn-subtle {{ 'active' if current_days == 30 }}">30D</a>
+            <a href="?days=90" class="btn btn-sm btn-subtle {{ 'active' if current_days == 90 }}">90D</a>
+            <a href="?days=180" class="btn btn-sm btn-subtle {{ 'active' if current_days == 180 }}">180D</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 border-0" style="border-radius: 15px;">
+        <div class="card-body">
+            <div style="height: 400px; position: relative;">
+                <canvas id="fitnessChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card card-stat shadow-sm text-center p-3 h-100">
+                <div class="mb-1">
+                    <span class="text-uppercase text-muted small font-weight-bold">Fitness (CTL)</span>
+                    <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Chronic Training Load</b><br>42-day rolling stress average.<br>• 50-80: Solid Base<br>• 100+: Peak Performance" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <h2 class="text-primary text-value mb-0" id="stat-ctl">-</h2>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-stat shadow-sm text-center p-3 h-100">
+                <div class="mb-1">
+                    <span class="text-uppercase text-muted small font-weight-bold">Fatigue (ATL)</span>
+                    <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Acute Training Load</b><br>7-day rolling stress average.<br>Shows your immediate fatigue levels." viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <h2 class="text-warning text-value mb-0" id="stat-atl">-</h2>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-stat shadow-sm text-center p-3 h-100">
+                <div class="mb-1">
+                    <span class="text-uppercase text-muted small font-weight-bold">Form (TSB)</span>
+                    <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Training Stress Balance</b><br>CTL minus ATL.<br>• +5 to +20: Fresh (Race Ready)<br>• -10 to -30: Training Zone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <h2 class="text-value mb-0" id="stat-tsb">-</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 1. Initialize Tooltips using Vanilla JS (Bootstrap 5)
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+
+    // 2. Load Data from Flask
+    const raw = {{ fitness_json | safe }};
+    
+    if (raw && raw.length > 0) {
+        const latest = raw[raw.length - 1];
+        
+        // Update Tiles
+        document.getElementById('stat-ctl').innerText = Math.round(latest.ctl);
+        document.getElementById('stat-atl').innerText = Math.round(latest.atl);
+        document.getElementById('stat-tsb').innerText = Math.round(latest.tsb);
+        
+        // Dynamic Coloring for TSB
+        const tsbEl = document.getElementById('stat-tsb');
+        if (latest.tsb > 5) tsbEl.style.color = '#4caf50';
+        else if (latest.tsb < -25) tsbEl.style.color = '#e91e63';
+        else tsbEl.style.color = '#00bcd4';
+
+        // 3. Render Chart
+        new Chart(document.getElementById('fitnessChart'), {
+            data: {
+                labels: raw.map(d => d.d),
+                datasets: [
+                    { type: 'line', label: 'CTL (Fitness)', data: raw.map(d => d.ctl), borderColor: '#2196F3', borderWidth: 3, pointRadius: 0, tension: 0.4, yAxisID: 'y' },
+                    { type: 'line', label: 'ATL (Fatigue)', data: raw.map(d => d.atl), borderColor: '#ff9800', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, tension: 0.4, yAxisID: 'y' },
+                    { type: 'line', label: 'TSB (Form)', data: raw.map(d => d.tsb), borderColor: '#4caf50', borderWidth: 1, backgroundColor: 'rgba(76, 175, 80, 0.05)', fill: true, pointRadius: 0, tension: 0.4, yAxisID: 'y' },
+                    { type: 'bar', label: 'Daily TSS', data: raw.map(d => d.tss), backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 2, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { 
+                    mode: 'index', 
+                    intersect: false 
+                },
+                plugins: { 
+                    legend: { 
+                        display: true,          // Turned back on
+                        position: 'top',
+                        align: 'end',           // Moves it to the right
+                        labels: {
+                            usePointStyle: true, // Circles instead of boxes
+                            boxWidth: 8,
+                            padding: 20,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#000',
+                        bodyColor: '#666',
+                        borderColor: '#e9ecef',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(1);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        position: 'left', 
+                        grid: { color: '#f1f3f5' }, 
+                        title: { display: true, text: 'Load / Form', font: { weight: 'bold' } } 
+                    },
+                    y1: { 
+                        position: 'right', 
+                        grid: { display: false }, 
+                        title: { display: true, text: 'Daily TSS', font: { weight: 'bold' } }, 
+                        suggestedMax: 200 
+                    }
+                }
+            }
+        });
+    } else {
+        console.error("No fitness data found to display.");
+    }
+</script>
+{% endblock %}

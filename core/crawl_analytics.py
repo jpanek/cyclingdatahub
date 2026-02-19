@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Add root to path so we can import core
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -35,38 +35,37 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
 
         to_process = run_query(SQL_RECALC_QUEUE, (a_id, batch_size_per_user))
 
-        if not to_process:
+        # 1. Process pending activities if they exist
+        if to_process:
+            print(f"\t{name} ({a_id}): Recomputing {len(to_process)} activities...")
+            processed = 0
+            first_date_in_batch = None
+            try:
+                for row in to_process:
+                    sid = row['strava_id']
+                    ride_date = row['start_date_local']
+                    success = process_activity_metrics(sid, force=True)
+                    if success:
+                        run_query("UPDATE activities SET needs_recalculation = FALSE WHERE strava_id = %s", (sid,))
+                        processed += 1
+                        if not first_date_in_batch or ride_date < first_date_in_batch:
+                            first_date_in_batch = ride_date
+                
+                if processed > 0 and first_date_in_batch:
+                    print(f"\t✨ Batch complete. Syncing fitness from {first_date_in_batch.date()}...")
+                    sync_daily_fitness(a_id, first_date_in_batch)
+            except Exception as user_err:
+                print(f"  ⚠️ Error processing {name}: {user_err}")
+        else:
             print(f"\t{name} ({a_id}): Analytics are up to date.")
-            continue
-        
-        print(f"\t{name} ({a_id}): Recomputing {len(to_process)} activities...")
 
-        processed = 0
-        first_date_in_batch = None
+        # 2. ALWAYS refresh the last 3 days to ensure "Today" exists in the ledger
         try:
-            for row in to_process:
-                sid = row['strava_id']
-                ride_date = row['start_date_local']
-                
-                # 3. Run the processor (FTP foundation)
-                success = process_activity_metrics(sid, force=True)
-                
-                if success:
-                    # 4. Mark as fixed so it leaves the queue
-                    run_query(
-                        "UPDATE activities SET needs_recalculation = FALSE WHERE strava_id = %s", 
-                        (sid,)
-                    )
-                    processed += 1
-                    if not first_date_in_batch or ride_date < first_date_in_batch:
-                        first_date_in_batch = ride_date
-            
-            if processed > 0 and first_date_in_batch:
-                print(f"\t✨ Batch complete. Syncing fitness from {first_date_in_batch.date()}...")
-                sync_daily_fitness(a_id, first_date_in_batch)
-
-        except Exception as user_err:
-            print(f"  ⚠️ Error processing {name}: {user_err}")
+            fitness_refresh_history = datetime.now() - timedelta(days=3)
+            sync_daily_fitness(a_id, fitness_refresh_history.date())
+            print(f"\t✅ {name} fitness data refreshe up to today.")
+        except Exception as e:
+            print(f"  ⚠️ Error marching fitness for {name}: {e}")
 
 
 if __name__ == "__main__":
