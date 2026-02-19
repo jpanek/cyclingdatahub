@@ -83,7 +83,7 @@ WHERE a.athlete_id = %s
   AND (%s IS NULL OR a.type = %s)
   AND (a.start_date_local >= %s)
   AND (a.start_date_local <= %s)
-ORDER BY a.start_date_local asc
+ORDER BY a.start_date_local desc
 """
 
 SQL_GET_ACTIVITY_TYPES_BY_COUNT = """
