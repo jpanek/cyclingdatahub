@@ -20,7 +20,8 @@ from core.queries import (
     SQL_NEXT_ACTIVITY_ID,
     SQL_DAILY_ACTIVITIES_HISTORY,
     SQL_RAW_DATA,
-    SQL_GET_USER_SETTINGS
+    SQL_GET_USER_SETTINGS,
+    SQL_GET_HOME_SUMMARY
 )
 
 main_bp = Blueprint('main', __name__)
@@ -33,8 +34,15 @@ def index():
     
     res = run_query("SELECT COUNT(*) as count FROM activities WHERE athlete_id = %s", (athlete_id,))
     activity_count = res[0]['count'] if res else 0
+
+    #summary for user:
+    summary = run_query(SQL_GET_HOME_SUMMARY, (athlete_id, athlete_id, athlete_id, athlete_id))[0]
+
     #activity_count = 0
-    return render_template('index.html', syncing=(activity_count == 0))
+    return render_template('index.html',
+            syncing=(activity_count == 0),
+            summary=summary
+    )
 
 @main_bp.route('/dashboard')
 @login_required

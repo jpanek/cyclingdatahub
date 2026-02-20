@@ -1,12 +1,21 @@
 <!-- templates/index.html -->
+
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container py-5">
 
     <div class="mb-5">
+        
+        <!--         
         <h1 class="fw-bold">Cycling Stats</h1>
-        <p class="text-muted">Welcome, {{ current_user_name }}.</p>
+        <p class="text-muted mb-0">Welcome, {{ summary.firstname }}.</p> 
+        -->
+        <h2 class="fw-bold">Welcome, {{ summary.firstname }}</h2>
+
+        {% if summary.date %}
+            <p class="text-muted opacity-75">Data as of {{ summary.date.strftime('%b %d, %Y') }}</p>
+        {% endif %}
     </div>
 
     {% if syncing %}
@@ -27,7 +36,9 @@
                     <h3 class="fw-bold">
                         <a href="/fitness" class="text-decoration-none text-dark stretched-link">Form & Fitness</a>
                     </h3>
-                    <p class="text-muted small mb-0">Daily trends of Chronic and Accute traning load.</p>
+                    <p class="text-muted small mb-0">
+                        Fitness: {{ summary.ctl|round(1) }} • Fatigue: {{ summary.atl|round(1) }} • Form: {{ summary.tsb|round(1) }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -38,7 +49,12 @@
                     <h3 class="fw-bold">
                         <a href="/performance" class="text-decoration-none text-dark stretched-link">Performance</a>
                     </h3>
-                    <p class="text-muted small mb-0">Power profiles, FTP trends and trend analysis.</p>
+                    <p class="text-muted small mb-0">
+                        Current FTP: {{ summary.manual_ftp or summary.detected_ftp }}W
+                        {% if summary.ftp_date %}
+                        •  Set on {{ summary.ftp_date.strftime('%b %d, %Y') }}
+                        {% endif %}
+                    </p>
                 </div>
             </div>
         </div>
@@ -49,7 +65,9 @@
                     <h3 class="fw-bold">
                         <a href="/dashboard" class="text-decoration-none text-dark stretched-link">Dashboard</a>
                     </h3>
-                    <p class="text-muted small mb-0">Overview of training metrics and monthly progress.</p>
+                    <p class="text-muted small mb-0">
+                        This Month: {{ summary.mtd_km|round(0)|int }} km • {{ (summary.mtd_minutes / 60)|round(1) }} hours
+                    </p>
                 </div>
             </div>
         </div>
@@ -57,10 +75,17 @@
         <div class="col-md-6">
             <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
                 <div class="card-body p-0">
-                    <h3 class="fw-bold">
-                        <a href="/map" class="text-decoration-none text-dark stretched-link">Maps</a>
-                    </h3>
-                    <p class="text-muted small mb-0">Heatmaps of rides with filters.</p>
+                    {% if summary.last_id %}
+                        <h3 class="fw-bold">
+                            <a href="/activity/{{ summary.last_id }}" class="text-decoration-none text-dark stretched-link">Latest Ride</a>
+                        </h3>
+                        <p class="text-muted small mb-0">
+                            {{ summary.last_name }} • {{ summary.last_km|round|int }} km • {{ summary.last_tss|int }} TSS • {{ summary.last_watts|int }}W
+                        </p>
+                    {% else %}
+                        <h3 class="fw-bold text-muted">Latest Activity</h3>
+                        <p class="text-muted small mb-0">No activities found.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -71,7 +96,10 @@
                     <h3 class="fw-bold">
                         <a href="/activities" class="text-decoration-none text-dark stretched-link">Activity History</a>
                     </h3>
-                    <p class="text-muted small mb-0">Filter historical activities.</p>
+                    <p class="text-muted small mb-0">
+                        
+                        {{ "{:,}".format(total_activity_count) }} activities • {{ "{:,}".format(total_streams_count) }} streams
+                    </p>
                 </div>
             </div>
         </div>
@@ -79,18 +107,14 @@
         <div class="col-md-6">
             <div class="card h-100 p-4 bg-white border rounded-3 shadow-sm position-relative card-hover">
                 <div class="card-body p-0">
-                    {% if last_activity_id %}
-                        <h3 class="fw-bold">
-                            <a href="/activity/{{ last_activity_id }}" class="text-decoration-none text-dark stretched-link">Latest Ride</a>
-                        </h3>
-                        <p class="text-muted small mb-0">Detailed look & analysis on activity level.</p>
-                    {% else %}
-                        <h3 class="fw-bold text-muted">Latest Activity</h3>
-                        <p class="text-muted small mb-0">No activities found.</p>
-                    {% endif %}
+                    <h3 class="fw-bold">
+                        <a href="/map" class="text-decoration-none text-dark stretched-link">Maps</a>
+                    </h3>
+                    <p class="text-muted small mb-0">Heatmap of rides with filters.</p>
                 </div>
             </div>
         </div>
+
     </div>
     {% endif %}
 

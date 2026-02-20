@@ -253,3 +253,54 @@ WHERE t.athlete_id = %s
   AND t.start_date_local >= CURRENT_DATE - INTERVAL %s
 ORDER BY t.start_date_local DESC
 """
+
+SQL_GET_HOME_SUMMARY = """
+WITH latest_fitness AS (
+    SELECT ctl, atl, tsb, date
+    FROM athlete_daily_metrics
+    WHERE athlete_id = %s
+    ORDER BY date DESC
+    LIMIT 1
+),
+latest_activity AS (
+    SELECT 
+        a.strava_id, a.name, a.start_date_local, 
+        aa.training_stress_score as tss,
+        aa.weighted_avg_power as watts,
+        a.distance
+    FROM activities a
+    LEFT JOIN activity_analytics aa ON a.strava_id = aa.strava_id
+    WHERE a.athlete_id = %s
+    ORDER BY a.start_date_local DESC
+    LIMIT 1
+),
+monthly_stats AS (
+    SELECT 
+        SUM(distance) / 1000.0 as mtd_km,
+        SUM(moving_time) / 60.0 as mtd_minutes,
+        count(*) mtd_activities
+    FROM activities 
+    WHERE athlete_id = %s 
+    AND date_trunc('month', start_date_local) = date_trunc('month', CURRENT_DATE)
+)
+SELECT 
+    u.firstname,
+    f.date,
+    u.manual_ftp, u.detected_ftp, u.ftp_detected_at as ftp_date,
+    COALESCE(f.ctl, 0) as ctl, 
+    COALESCE(f.atl, 0) as atl, 
+    COALESCE(f.tsb, 0) as tsb,
+    la.strava_id as last_id,
+    la.name as last_name,
+    la.tss as last_tss,
+    la.watts as last_watts,
+    (la.distance / 1000.0) as last_km,
+    COALESCE(m.mtd_km, 0) as mtd_km,
+    COALESCE(m.mtd_minutes, 0) as mtd_minutes,
+    COALESCE(m.mtd_activities, 0) as mtd_activities
+FROM users u
+LEFT JOIN latest_fitness f ON TRUE
+LEFT JOIN latest_activity la ON TRUE
+LEFT JOIN monthly_stats m ON TRUE
+WHERE u.athlete_id = %s;
+"""
