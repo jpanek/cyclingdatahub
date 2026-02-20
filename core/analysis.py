@@ -78,7 +78,7 @@ def calculate_weighted_power(watts_series):
 
 def get_interval_bests(activity_data, intervals=None):
     """
-    Returns peak power and the corresponding average HR during those specific power windows.
+    Returns independent peak power and peak heart rate for specific windows.
     """
     if intervals is None:
         intervals = {'5s': 5, '1m': 60, '5m': 300, '20m': 1200}
@@ -88,21 +88,18 @@ def get_interval_bests(activity_data, intervals=None):
     
     results = {}
     for label, seconds in intervals.items():
+        # 1. Calculate Peak Power independently
         if watts.size >= seconds:
-            # 1. Find the peak power window
             rolling_pwr = np.convolve(watts, np.ones(seconds)/seconds, mode='valid')
-            max_idx = np.argmax(rolling_pwr)
-            
-            results[f'peak_power_{label}'] = int(round(rolling_pwr[max_idx]))
-            
-            # 2. Get average HR for the EXACT same time window
-            if hr.size >= watts.size:
-                hr_window = hr[max_idx : max_idx + seconds]
-                results[f'peak_hr_{label}'] = int(round(np.mean(hr_window))) if hr_window.size > 0 else None
-            else:
-                results[f'peak_hr_{label}'] = None
+            results[f'peak_power_{label}'] = int(round(np.max(rolling_pwr)))
         else:
             results[f'peak_power_{label}'] = None
+            
+        # 2. Calculate Peak HR independently (This was the missing piece!)
+        if hr.size >= seconds:
+            rolling_hr = np.convolve(hr, np.ones(seconds)/seconds, mode='valid')
+            results[f'peak_hr_{label}'] = int(round(np.max(rolling_hr)))
+        else:
             results[f'peak_hr_{label}'] = None
             
     return results

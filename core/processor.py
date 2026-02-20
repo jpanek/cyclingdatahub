@@ -100,7 +100,7 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     history_sql = """
         SELECT 
             MAX(FLOOR(aa.peak_20m * 0.95)) as historic_ftp,
-            MAX(aa.peak_5m_hr) as historic_hr 
+            MAX(aa.peak_5s_hr) as historic_hr 
         FROM activity_analytics aa
         JOIN activities a ON aa.strava_id = a.strava_id
         WHERE a.athlete_id = %s 
