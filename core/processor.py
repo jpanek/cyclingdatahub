@@ -111,13 +111,18 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
             
             if decay_res and decay_res[0]['next_ftp']:
                 active_ftp = max(int(decay_res[0]['next_ftp']), ride_ftp_est)
-                active_hr = max(int(current_max_hr or 0), int(context['detected_max_hr'] or 0))
+                existing_hr = int(context.get('detected_max_hr') or context.get('manual_max_hr') or 0)
+                active_hr = max(int(current_max_hr or 0), existing_hr)
             else:
                 active_ftp = ride_ftp_est or config.DEFAULT_FTP
-                active_hr = current_max_hr or context['detected_max_hr'] or config.DEFAULT_MAX_HR
+                active_hr = current_max_hr or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
         else:
             active_ftp = ride_ftp_est
-            active_hr = max(current_max_hr, context['detected_max_hr'] or 0)
+            existing_hr = int(context.get('detected_max_hr') or 0)
+            active_hr = max(int(current_max_hr or 0), existing_hr)
+        
+        if not active_hr or active_hr == 0:
+            active_hr = int(context.get('manual_max_hr') or config.DEFAULT_MAX_HR)
 
         run_query("""
             UPDATE users SET 
@@ -227,7 +232,6 @@ def process_activity_metrics(strava_id, force=False):
 
     return True
 
-def process_activity_metrics_old(strava_id, force=False):
     """
     Calculates high-res metrics (TSS, IF, EF) and manages adaptive fitness baselines.
     Uses a tiered strategy: Manual Override (Date-Aware) > Detected Peak > Default.
