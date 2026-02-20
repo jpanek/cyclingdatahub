@@ -83,29 +83,32 @@ def run_sync(athlete_id, athlete_name="Athlete"):
 
         # 3. Sync Activities
         is_new_user = False
-
+        all_activities = []
+        
         if REFRESH_HISTORY:
             print("\t🔄 Performing full history sync (Page 1)...")
-            params = {"page": 1, "per_page": 200}
+            all_activities = fetch_activities_list(token, {"page": 1, "per_page": 200})
         else:
             after_ts = get_db_latest_timestamp_for_athlete(conn, athlete_id)
-            
-            #after_ts = after_ts - 345600 #look 12 hours behind
 
             if after_ts == 0:
                 is_new_user = True
-                print(f"\t🚀 New user, getting 200 last activities")
-                params = {"per_page":200}
+                pages_to_fetch = 4  # Set your desired depth here
+                print(f"\t🚀 New user, fetching last {pages_to_fetch} pages (up to {pages_to_fetch * 200} activities)")
+                
+                for page in range(1, pages_to_fetch + 1):
+                    print(f"\t  Fetching page {page}...")
+                    page_data = fetch_activities_list(token, {"page": page, "per_page": 200})
+                    if not page_data:
+                        break
+                    all_activities.extend(page_data)
             else:
                 readable = datetime.fromtimestamp(after_ts).strftime('%Y-%m-%d %H:%M:%S')
                 print(f"\t🚀 Incremental sync: Activities after {readable}")
-                params = {"after": after_ts, "per_page": 200}
+                all_activities = fetch_activities_list(token, {"after": after_ts, "per_page": 200})
 
-
-        activities=None
-        activities = fetch_activities_list(token, params)
-
-        if activities:
+        if all_activities:
+            activities = all_activities
             # 4. Save the new activities to database
             save_db_activities(conn, athlete_id, activities)
             print(f"\t✅ Loaded {len(activities)} activities.")
