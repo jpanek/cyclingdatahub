@@ -12,6 +12,31 @@ import numpy as np
 from psycopg2.extras import Json
 import config
 import json
+from config import LOG_PATH, ANALYTICS_RECALC_SIZE
+
+def run_delayed_delete_recalc(athlete_id, ride_date):
+    """
+    Background worker to handle analytics recalculation after a delete.
+    Designed to be called via threading.Thread.
+    """
+    from core.database import invalidate_analytics_from_date
+    from core.crawl_analytics import sync_local_analytics
+    
+    try:
+        # Ensure it's a string for the invalidation function
+        date_str = ride_date.strftime('%Y-%m-%d')
+        
+        # 1. Clear everything from that date forward
+        invalidate_analytics_from_date(athlete_id, date_str)
+        
+        # 2. Re-crawl to fill the metrics gap
+        sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE, target_athlete_id=athlete_id)
+        
+        with open(LOG_PATH, "a") as log_file:
+            log_file.write(f"[{datetime.now()}] BG_JOB: Delete-recalc finished for {athlete_id} from {date_str}.\n")
+            
+    except Exception as e:
+        print(f"Error in background delete-recalc: {e}")
 
 def format_activities_to_markdown(rows):
     """

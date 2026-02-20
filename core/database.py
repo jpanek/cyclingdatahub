@@ -378,6 +378,10 @@ def invalidate_analytics_from_date(athlete_id, start_date):
     try:
         # start_date should be a string 'YYYY-MM-DD HH:MM:SS'
         run_query(SQL_INVALIDATE_FORWARD, (athlete_id, start_date))
-        print(f"  🚩 Ripple Effect: Invalidated analytics for {athlete_id} from {start_date} forward.")
     except Exception as e:
         print(f"  ⚠️ Failed to invalidate forward: {e}")
+
+def db_mark_streams_missing(strava_id):
+    """Marks an activity as having no streams to prevent crawler loops."""
+    sql = "UPDATE activities SET streams_missing = TRUE WHERE strava_id = %s"
+    run_query(sql, (strava_id,))

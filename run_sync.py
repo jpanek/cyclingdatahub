@@ -41,6 +41,7 @@ def sync_single_activity(athlete_id, activity_id):
             from core.database import invalidate_analytics_from_date
             ride_date = activity.get('start_date_local')
             invalidate_analytics_from_date(athlete_id,ride_date)
+            print(f"\t🚩Invalidated analytics for {athlete_id} from {ride_date} forward.")
 
             #7. actually run the analytics crawl:
             from core.crawl_analytics import sync_local_analytics

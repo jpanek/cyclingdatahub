@@ -37,16 +37,16 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
         to_process = run_query(SQL_CRAWLER_BACKLOG, (a_id, one_year_ago, batch_size_per_user))
 
         if not to_process:
-            print(f"  ✅ {name} ({a_id}): Fully caught up.")
+            print(f"\t✅ {name} ({a_id}): Fully caught up.")
             continue
 
-        print(f"  🔄 {name} ({a_id}): Syncing {len(to_process)} activities...")
+        print(f"\t🔄 {name} ({a_id}): Syncing {len(to_process)} activities...")
 
         # 4. Process the batch for this user
         try:
             conn = get_db_connection()
             a_date = None
-            
+
             for row in to_process:
                 s_id = row['strava_id']
                 a_date = row['start_date_local'].strftime('%Y-%m-%d')
@@ -56,6 +56,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
             if a_date:
                 from core.database import invalidate_analytics_from_date
                 invalidate_analytics_from_date(a_id, a_date)
+                print(f"\t🚩Invalidated analytics for {name} ({a_id}) from {a_date} forward.")
 
         except Exception as user_err:
             print(f"⚠️ Error processing {name}: {user_err}")

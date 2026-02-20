@@ -3,6 +3,7 @@
 import requests
 from datetime import datetime, timedelta
 from config import APP_STRAVA_CLIENT_ID, APP_STRAVA_CLIENT_SECRET, USER_STRAVA_REFRESH_TOKEN, STRAVA_TIMEOUT
+from core.database import db_mark_streams_missing
 
 def print_rate_limits(res):
     """Prints rate limits if available; stays silent if not."""
@@ -108,6 +109,13 @@ def sync_activity_streams(conn, athlete_id, activity_id, force=False):
 
     try:
         res = requests.get(url, headers=headers, params=params, timeout=STRAVA_TIMEOUT)
+
+        #if stream is missing, invalidate:
+        if res.status_code == 404:
+            print(f"\tℹ️ No streams found for {activity_id}. Marking as missing.")
+            db_mark_streams_missing(activity_id)
+            return False  
+
         res.raise_for_status()
 
         print_rate_limits(res)

@@ -2,6 +2,7 @@
 import subprocess
 import os
 import json
+import threading
 from flask import (
     Blueprint, redirect, url_for, flash, request, 
     session, current_app, jsonify, Response
@@ -10,6 +11,7 @@ from config import LOG_PATH, BASE_PATH
 from core.database import run_query
 from routes.auth import login_required
 from datetime import datetime
+from core.processor import run_delayed_delete_recalc
 
 ops_bp = Blueprint('ops', __name__)
 
@@ -164,18 +166,35 @@ def strava_webhook():
                 print(f"[{datetime.now()}] WEBHOOK ERROR: Failed to start subprocess: {e}")
             
         elif object_type == 'activity' and aspect_type == 'delete':
-            from core.database import delete_db_activity
+            from core.database import delete_db_activity, get_db_connection
             
             print(f"[{datetime.now()}] WEBHOOK: Activity delete {activity_id} detected.")
-            success = delete_db_activity(activity_id)
-            
-            try:
-                with open(LOG_PATH, "a") as log_file:
-                    res_str = "SUCCESS" if success else "FAILED"
-                    log_file.write(f"[{datetime.now()}] WEBHOOK DELETE: Activity {activity_id} cleanup {res_str}\n")
-            except Exception as e:
-                print(f"Failed to log deletion to sync log: {e}")
 
-        # Always return 200 OK to Strava immediately
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT start_date_local FROM activities WHERE strava_id = %s", (activity_id,))
+                    row = cur.fetchone()
+                    ride_date = row[0] if row else None
+
+                success = delete_db_activity(activity_id)
+
+                if ride_date:
+                    thread = threading.Thread(
+                        target=run_delayed_delete_recalc,
+                        args=(athlete_id, ride_date),
+                        daemon=True
+                    )
+                    thread.start()
+                    
+                with open(LOG_PATH, "a") as log_file:
+                    log_file.write(f"[{datetime.now()}] WEBHOOK DELETE: Activity {activity_id} purged. BG recalc started.\n")
+
+            except Exception as e:
+                print(f"[{datetime.now()}] WEBHOOK ERROR during delete: {e}")
+            finally:
+                conn.close()
+
         return "EVENT_RECEIVED", 200
     
+    return "Method not allowed", 405

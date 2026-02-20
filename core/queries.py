@@ -201,6 +201,7 @@ SQL_CRAWLER_BACKLOG = """
   FROM activities a
   LEFT JOIN activity_streams s ON a.strava_id = s.strava_id
   WHERE a.athlete_id = %s 
+    AND a.streams_missing = FALSE
     --AND a.type IN ('Ride', 'VirtualRide')
     AND a.start_date_local >= %s
     AND s.strava_id IS NULL
