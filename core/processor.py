@@ -93,27 +93,37 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     Refined logic: Uses a rolling 90-day window relative to the ride_date 
     to ensure historical baselines are accurate.
     """
-    lookback_start = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS)
     
-    # 1. Find the best performance in the 90 days PRIOR to this ride.
-    # We use activity_analytics to get the actual peak_20m records.
+    ftp_lookback = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) # 90 days
+    hr_lookback = ride_date - timedelta(days=config.HR_LOOKBACK_DAYS)   # 365 days
+    
+    # get the historical peaks for Power and HR
     history_sql = """
         SELECT 
-            MAX(FLOOR(aa.peak_20m * 0.95)) as historic_ftp,
-            MAX(aa.peak_5s_hr) as historic_hr 
-        FROM activity_analytics aa
-        JOIN activities a ON aa.strava_id = a.strava_id
-        WHERE a.athlete_id = %s 
-          AND a.start_date_local >= %s 
-          AND a.start_date_local < %s
-          AND a.type = ANY(%s)
+            (SELECT MAX(FLOOR(aa.peak_20m * 0.95)) 
+             FROM activity_analytics aa 
+             JOIN activities a ON aa.strava_id = a.strava_id
+             WHERE a.athlete_id = %s AND a.type = ANY(%s)
+               AND a.start_date_local >= %s AND a.start_date_local < %s
+            ) as historic_ftp,
+            (SELECT MAX(aa.peak_5s_hr) 
+             FROM activity_analytics aa 
+             JOIN activities a ON aa.strava_id = a.strava_id
+             WHERE a.athlete_id = %s AND a.type = ANY(%s)
+               AND a.start_date_local >= %s AND a.start_date_local < %s
+            ) as historic_hr
     """
-    history_res = run_query(history_sql, (athlete_id, lookback_start, ride_date, config.ANALYTICS_ACTIVITIES))
+    
+    params = (
+        athlete_id, config.ANALYTICS_ACTIVITIES, ftp_lookback, ride_date, # FTP params
+        athlete_id, config.ANALYTICS_ACTIVITIES, hr_lookback, ride_date   # HR params
+    )
     
     # 2. Extract results or fallback to config defaults
+    history_res = run_query(history_sql, params)
     res = history_res[0] if history_res else {}
+
     historic_ftp = res.get('historic_ftp') or config.DEFAULT_FTP
-    # Using existing detected HR if history is empty
     historic_hr = res.get('historic_hr') or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
 
     # 3. Breakthrough Logic: Is this ride better than the last 90 days?
