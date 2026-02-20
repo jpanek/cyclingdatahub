@@ -90,56 +90,53 @@ def get_athlete_context(strava_id):
 
 def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr):
     """
-    Logic for FTP/HR detection, decay, and breakthroughs.
+    Refined logic: Uses a rolling 90-day window relative to the ride_date 
+    to ensure historical baselines are accurate.
     """
-    stale_limit = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS)
+    lookback_start = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS)
     
-    is_ftp_stale = context['detected_ftp'] is not None and context['ftp_detected_at'] < stale_limit
-    is_new_ftp_peak = context['detected_ftp'] is not None and ride_ftp_est > context['detected_ftp']
-    is_hr_stale = context['detected_max_hr'] is not None and context['hr_detected_at'] < stale_limit
+    # 1. Find the best performance in the 90 days PRIOR to this ride.
+    # We use activity_analytics to get the actual peak_20m records.
+    history_sql = """
+        SELECT 
+            MAX(CAST(aa.peak_20m * 0.95 AS INTEGER)) as historic_ftp,
+            MAX(aa.peak_5m_hr) as historic_hr 
+        FROM activity_analytics aa
+        JOIN activities a ON aa.strava_id = a.strava_id
+        WHERE a.athlete_id = %s 
+          AND a.start_date_local >= %s 
+          AND a.start_date_local < %s
+          AND a.type = ANY(%s)
+    """
+    history_res = run_query(history_sql, (athlete_id, lookback_start, ride_date, config.ANALYTICS_ACTIVITIES))
+    
+    # 2. Extract results or fallback to config defaults
+    res = history_res[0] if history_res else {}
+    historic_ftp = res.get('historic_ftp') or config.DEFAULT_FTP
+    # Using existing detected HR if history is empty
+    historic_hr = res.get('historic_hr') or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
 
-    #if context['detected_ftp'] is None or is_new_ftp_peak or is_ftp_stale or is_hr_stale:
-    if context['detected_ftp'] is None or is_new_ftp_peak or is_ftp_stale or is_hr_stale or (context['detected_max_hr'] or 0) == 0:
-        
-        if (is_ftp_stale or is_hr_stale) and not is_new_ftp_peak:
-            decay_sql = """
-                SELECT MAX(weighted_average_watts) as next_ftp, MAX(max_heartrate) as next_hr
-                FROM activities
-                WHERE athlete_id = %s AND type = ANY(%s)
-                  AND start_date_local >= %s AND start_date_local <= %s
-            """
-            decay_res = run_query(decay_sql, (athlete_id, config.ANALYTICS_ACTIVITIES, stale_limit, ride_date))
-            
-            if decay_res and decay_res[0]['next_ftp']:
-                active_ftp = max(int(decay_res[0]['next_ftp']), ride_ftp_est)
-                existing_hr = int(context.get('detected_max_hr') or context.get('manual_max_hr') or 0)
-                active_hr = max(int(current_max_hr or 0), existing_hr)
-            else:
-                active_ftp = ride_ftp_est or config.DEFAULT_FTP
-                active_hr = current_max_hr or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
-        else:
-            active_ftp = ride_ftp_est
-            existing_hr = int(context.get('detected_max_hr') or 0)
-            active_hr = max(int(current_max_hr or 0), existing_hr)
-        
-        if not active_hr or active_hr == 0:
-            active_hr = int(context.get('manual_max_hr') or config.DEFAULT_MAX_HR)
+    # 3. Breakthrough Logic: Is this ride better than the last 90 days?
+    active_ftp = max(historic_ftp, ride_ftp_est)
+    active_hr = max(int(historic_hr), int(current_max_hr))
 
+    # 4. Global Update: Only update the 'users' table if we are processing 
+    # the most recent activity (to avoid old rides overwriting your current 2026 fitness).
+    # We check if ftp_detected_at is NULL or if this ride is newer/same as current detection.
+    current_detection_date = context.get('ftp_detected_at')
+    
+    if current_detection_date is None or ride_date >= current_detection_date:
         run_query("""
             UPDATE users SET 
                 detected_ftp = %s, 
                 ftp_source_strava_id = %s, 
-                ftp_detected_at = CASE WHEN detected_ftp != %s THEN %s ELSE ftp_detected_at END,
+                ftp_detected_at = %s,
                 detected_max_hr = %s, 
                 hr_source_strava_id = %s, 
-                hr_detected_at = CASE WHEN detected_max_hr != %s THEN %s ELSE hr_detected_at END
+                hr_detected_at = %s
             WHERE athlete_id = %s
-        """, (active_ftp, context['strava_id'], active_ftp, ride_date, active_hr, context['strava_id'], active_hr, ride_date, athlete_id))
-        
-        return active_ftp, active_hr
-
-    active_ftp = context['detected_ftp'] or config.DEFAULT_FTP
-    active_hr = int(context['detected_max_hr'] or config.DEFAULT_MAX_HR)
+        """, (active_ftp, context['strava_id'], ride_date, active_hr, context['strava_id'], ride_date, athlete_id))
+    
     return active_ftp, active_hr
 
 def process_activity_metrics(strava_id, force=False):
