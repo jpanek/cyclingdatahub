@@ -1,7 +1,7 @@
 # run_sync.py
 
 from datetime import datetime
-from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, ANALYTICS_RECALC_SIZE
+from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, ANALYTICS_RECALC_SIZE, NEW_USER_PAGES_TO_FETCH
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
     get_db_latest_timestamp_for_athlete, save_db_activities,
@@ -93,7 +93,7 @@ def run_sync(athlete_id, athlete_name="Athlete"):
 
             if after_ts == 0:
                 is_new_user = True
-                pages_to_fetch = 4  # Set your desired depth here
+                pages_to_fetch = NEW_USER_PAGES_TO_FETCH
                 print(f"\t🚀 New user, fetching last {pages_to_fetch} pages (up to {pages_to_fetch * 200} activities)")
                 
                 for page in range(1, pages_to_fetch + 1):
@@ -124,7 +124,7 @@ def run_sync(athlete_id, athlete_name="Athlete"):
                 from core.strava_api import sync_activity_streams
 
                 activities_to_process.sort(key=lambda x: x['start_date_local'])
-                earliest_date = activities[0]['start_date_local']
+                earliest_date = activities_to_process[0]['start_date_local']
 
 
                 for activity in activities_to_process:
