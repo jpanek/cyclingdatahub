@@ -5,31 +5,42 @@
 <div class="container-fluid mt-4">
 
     <!-- Buttons previous / next -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-2">
         <div>
             {% if prev_id %}
                 <a href="/activity/{{ prev_id }}" class="btn btn-outline-secondary shadow-sm">
-                    <i class="bi bi-chevron-left"></i> Previous
+                    <i class="bi bi-chevron-left"></i> <span class="d-none d-md-inline">Previous</span>
                 </a>
             {% else %}
                 <button class="btn btn-outline-secondary disabled border-0 text-muted">
-                    <i class="bi bi-chevron-left"></i>
+                    <i class="bi bi-chevron-left"></i> <span class="d-none d-md-inline">Previous</span>
                 </button>
             {% endif %}
+        </div>
+    
+        <div class="flex-grow-1" style="max-width: 500px;">
+            <select class="form-select shadow-sm fw-semibold text-truncate" onchange="if(this.value) window.location.href='/activity/' + this.value">
+                <optgroup label="Recent Activities">
+                    {% for recent in recent_activities %}
+                        <option value="{{ recent.strava_id }}" {% if recent.strava_id == activity.strava_id %}selected{% endif %}>
+                            {{ recent.start_date_local.strftime('%Y-%m-%d') }} - {{ recent.type }} — {{ recent.name }}
+                        </option>
+                    {% endfor %}
+                </optgroup>
+            </select>
         </div>
     
         <div>
             {% if next_id %}
                 <a href="/activity/{{ next_id }}" class="btn btn-outline-secondary shadow-sm">
-                    Next <i class="bi bi-chevron-right"></i>
+                    <span class="d-none d-md-inline">Next</span> <i class="bi bi-chevron-right"></i>
                 </a>
             {% else %}
                 <button class="btn btn-outline-secondary disabled border-0 text-muted">
-                    <i class="bi bi-chevron-right"></i>
+                    <span class="d-none d-md-inline">Next</span> <i class="bi bi-chevron-right"></i>
                 </button>
             {% endif %}
         </div>
-        
     </div>
 
     <!-- Titles -->
@@ -177,7 +188,7 @@
                             <tr>
                                 <th class="ps-3">Interval</th>
                                 <th>Avg Power</th>
-                                <th>Avg HR (at Peak Power)</th>
+                                <th>Avg HR</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -200,6 +211,33 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Fitness & freshness metrics -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-bold">Daily Fitness Snapshot (EOD)</div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <label class="text-muted d-block small fw-bold text-uppercase">Fitness (CTL)</label>
+                            <span class="fs-4 fw-bold text-primary">{{ fitness.ctl or '---' }}</span>
+                        </div>
+                        <div class="col-4 border-start">
+                            <label class="text-muted d-block small fw-bold text-uppercase">Fatigue (ATL)</label>
+                            <span class="fs-4 fw-bold text-danger">{{ fitness.atl or '---' }}</span>
+                        </div>
+                        <div class="col-4 border-start">
+                            <label class="text-muted d-block small fw-bold text-uppercase">Form (TSB)</label>
+                            <span class="fs-4 fw-bold {% if fitness.tsb and fitness.tsb < -20 %}text-danger{% elif fitness.tsb and fitness.tsb > 5 %}text-success{% else %}text-dark{% endif %}">
+                                {{ fitness.tsb or '---' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Chart: Power Curve -->

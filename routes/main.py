@@ -58,6 +58,28 @@ def activity_detail(strava_id):
     results = run_query(SQL_ACTIVITY_DETAILS, (strava_id,))
     activity = results[0] if results else None
     
+    # 1. Fetch the current ride's date first
+    current_ride = run_query("SELECT start_date_local FROM activities WHERE strava_id = %s", (strava_id,))
+    
+    if current_ride:
+        curr_date = current_ride[0]['start_date_local']
+        
+        recent_sql = """
+            (SELECT strava_id, substr(name,1,30) as name, type, start_date_local 
+             FROM activities 
+             WHERE athlete_id = %s AND start_date_local <= %s
+             ORDER BY start_date_local DESC LIMIT 10)
+            UNION
+            (SELECT strava_id, substr(name,1,30) as name, type, start_date_local 
+             FROM activities 
+             WHERE athlete_id = %s AND start_date_local > %s
+             ORDER BY start_date_local ASC LIMIT 10)
+            ORDER BY start_date_local DESC
+        """
+        recent_activities = run_query(recent_sql, (athlete_id, curr_date, athlete_id, curr_date))
+    else:
+        recent_activities = []
+
     if not activity:
         return "Activity details or streams not found.", 404
     
@@ -83,13 +105,23 @@ def activity_detail(strava_id):
 
     #get the best power curve:
     best_curve = get_best_power_curve(athlete_id, months=12)
+
+    fitness_sql = """
+        SELECT ctl, atl, tsb 
+        FROM athlete_daily_metrics 
+        WHERE athlete_id = %s AND date = %s::date
+    """
+    fitness_res = run_query(fitness_sql, (athlete_id, activity['start_date_local']))
+    fitness_data = fitness_res[0] if fitness_res else None
         
     return render_template(
         'activity_detail.html', 
         activity=activity, 
         prev_id=prev_id, 
         next_id=next_id,
-        best_power=best_curve
+        best_power=best_curve,
+        recent_activities=recent_activities,
+        fitness=fitness_data
     )
 
 @main_bp.route('/performance')
