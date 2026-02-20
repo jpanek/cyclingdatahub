@@ -127,10 +127,14 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
 
         run_query("""
             UPDATE users SET 
-                detected_ftp = %s, ftp_source_strava_id = %s, ftp_detected_at = %s,
-                detected_max_hr = %s, hr_source_strava_id = %s, hr_detected_at = %s
+                detected_ftp = %s, 
+                ftp_source_strava_id = %s, 
+                ftp_detected_at = CASE WHEN detected_ftp != %s THEN %s ELSE ftp_detected_at END,
+                detected_max_hr = %s, 
+                hr_source_strava_id = %s, 
+                hr_detected_at = CASE WHEN detected_max_hr != %s THEN %s ELSE hr_detected_at END
             WHERE athlete_id = %s
-        """, (active_ftp, context['strava_id'], ride_date, active_hr, context['strava_id'], ride_date, athlete_id))
+        """, (active_ftp, context['strava_id'], active_ftp, ride_date, active_hr, context['strava_id'], active_hr, ride_date, athlete_id))
         
         return active_ftp, active_hr
 
