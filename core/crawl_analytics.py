@@ -63,7 +63,9 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
         try:
             fitness_refresh_history = datetime.now() - timedelta(days=3)
             sync_daily_fitness(a_id, fitness_refresh_history.date())
-            print(f"\t✅ {name} fitness data refreshe up to today.")
+            
+            # turning off logging here: maybe move this to run only once per day later ...
+            #print(f"\t{name} ({a_id}) fitness data refreshe up to today.")
         except Exception as e:
             print(f"  ⚠️ Error marching fitness for {name}: {e}")
 
