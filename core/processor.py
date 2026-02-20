@@ -1,7 +1,7 @@
 # core/processor.py
 
 from datetime import datetime, timedelta
-from core.database import run_query, save_db_daily_tss
+from core.database import run_query
 from core.analysis import (
     calculate_weighted_power, 
     get_interval_bests, 
@@ -99,7 +99,7 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     # We use activity_analytics to get the actual peak_20m records.
     history_sql = """
         SELECT 
-            MAX(CAST(aa.peak_20m * 0.95 AS INTEGER)) as historic_ftp,
+            MAX(FLOOR(aa.peak_20m * 0.95)) as historic_ftp,
             MAX(aa.peak_5m_hr) as historic_hr 
         FROM activity_analytics aa
         JOIN activities a ON aa.strava_id = a.strava_id
@@ -228,8 +228,5 @@ def process_activity_metrics(strava_id, force=False):
         weighted_pwr, active_ftp, vam_val, decoupling_val,
         vi_score, ef_score, if_score, tss_score, Json(curve_json)
     ))
-
-    # Save TSS data to daily fintess table:
-    save_db_daily_tss(athlete_id,ride_date)
 
     return True
