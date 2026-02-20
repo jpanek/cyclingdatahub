@@ -101,8 +101,8 @@ SELECT firstname, lastname FROM users WHERE athlete_id = %s;
 SQL_GET_USER_SETTINGS = """
 SELECT 
     athlete_id, firstname, lastname, 
-    manual_ftp, detected_ftp, 
-    manual_max_hr, detected_max_hr, 
+    manual_ftp, detected_ftp, ftp_source_strava_id, ftp_detected_at,
+    manual_max_hr, detected_max_hr, hr_source_strava_id, hr_detected_at,
     weight, updated_at,
     manual_ftp_updated_at, manual_max_hr_updated_at
 FROM users 

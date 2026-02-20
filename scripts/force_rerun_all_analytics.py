@@ -44,10 +44,12 @@ def reprocess_all():
         
         # Step B: Fetch activities chronologically
         activities = run_query("""
-            SELECT strava_id, start_date_local 
-            FROM activities 
-            WHERE athlete_id = %s AND type = ANY(%s)
-            ORDER BY start_date_local ASC
+            SELECT a.strava_id, a.start_date_local 
+            FROM activities a
+            INNER JOIN activity_streams s ON a.strava_id = s.strava_id
+            WHERE a.athlete_id = %s 
+              AND a.type = ANY(%s)
+            ORDER BY a.start_date_local ASC
         """, (a_id, config.ANALYTICS_ACTIVITIES))
         
         total = len(activities)

@@ -90,28 +90,37 @@ def get_athlete_context(strava_id):
 
 def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr):
     """
-    Refined logic: Uses a rolling 90-day window relative to the ride_date 
-    to ensure historical baselines are accurate.
+    Refined logic: Uses split windows for FTP (90 days) and HR (365 days).
+    Returns the active baseline and updates the users table with the true source ride.
     """
-    
+    from datetime import timedelta
+    import config
+
+    # 1. Define the two different lookback windows
     ftp_lookback = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) # 90 days
     hr_lookback = ride_date - timedelta(days=config.HR_LOOKBACK_DAYS)   # 365 days
     
-    # get the historical peaks for Power and HR
+    # 2. Query for the bests + their source metadata using JSON objects
     history_sql = """
         SELECT 
-            (SELECT MAX(FLOOR(aa.peak_20m * 0.95)) 
+            -- FTP Source (90 days)
+            (SELECT json_build_object('val', FLOOR(aa.peak_20m * 0.95), 'id', aa.strava_id, 'date', a.start_date_local)
              FROM activity_analytics aa 
              JOIN activities a ON aa.strava_id = a.strava_id
              WHERE a.athlete_id = %s AND a.type = ANY(%s)
                AND a.start_date_local >= %s AND a.start_date_local < %s
-            ) as historic_ftp,
-            (SELECT MAX(aa.peak_5s_hr) 
+               AND aa.peak_20m IS NOT NULL
+             ORDER BY aa.peak_20m DESC, a.start_date_local DESC LIMIT 1
+            ) as ftp_data,
+            -- HR Source (365 days)
+            (SELECT json_build_object('val', aa.peak_5s_hr, 'id', aa.strava_id, 'date', a.start_date_local)
              FROM activity_analytics aa 
              JOIN activities a ON aa.strava_id = a.strava_id
              WHERE a.athlete_id = %s AND a.type = ANY(%s)
                AND a.start_date_local >= %s AND a.start_date_local < %s
-            ) as historic_hr
+               AND aa.peak_5s_hr IS NOT NULL
+             ORDER BY aa.peak_5s_hr DESC, a.start_date_local DESC LIMIT 1
+            ) as hr_data
     """
     
     params = (
@@ -119,20 +128,40 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
         athlete_id, config.ANALYTICS_ACTIVITIES, hr_lookback, ride_date   # HR params
     )
     
-    # 2. Extract results or fallback to config defaults
     history_res = run_query(history_sql, params)
     res = history_res[0] if history_res else {}
 
-    historic_ftp = res.get('historic_ftp') or config.DEFAULT_FTP
-    historic_hr = res.get('historic_hr') or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
+    # Extract results (Postgres JSON comes back as Python dicts)
+    ftp_record = res.get('ftp_data') or {}
+    hr_record = res.get('hr_data') or {}
 
-    # 3. Breakthrough Logic: Is this ride better than the last 90 days?
-    active_ftp = max(historic_ftp, ride_ftp_est)
-    active_hr = max(int(historic_hr), int(current_max_hr))
+    # Fallbacks to Profile/Config
+    # We prioritize manual profile settings if they exist, otherwise use history or defaults
+    historic_ftp = ftp_record.get('val') or context.get('manual_ftp') or config.DEFAULT_FTP
+    historic_hr = hr_record.get('val') or context.get('manual_max_hr') or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
 
-    # 4. Global Update: Only update the 'users' table if we are processing 
-    # the most recent activity (to avoid old rides overwriting your current 2026 fitness).
-    # We check if ftp_detected_at is NULL or if this ride is newer/same as current detection.
+    # 3. Breakthrough Logic: Is today's ride a new peak?
+    # Determine Active FTP and its Source
+    if ride_ftp_est >= historic_ftp:
+        active_ftp = ride_ftp_est
+        ftp_sid = context['strava_id']
+        ftp_date = ride_date
+    else:
+        active_ftp = historic_ftp
+        ftp_sid = ftp_record.get('id') or context.get('ftp_source_strava_id')
+        ftp_date = ftp_record.get('date') or context.get('ftp_detected_at')
+
+    # Determine Active HR and its Source
+    if current_max_hr >= historic_hr:
+        active_hr = current_max_hr
+        hr_sid = context['strava_id']
+        hr_date = ride_date
+    else:
+        active_hr = historic_hr
+        hr_sid = hr_record.get('id') or context.get('hr_source_strava_id')
+        hr_date = hr_record.get('date') or context.get('hr_detected_at')
+
+    # 4. Global Update: Sync the 'users' table if we are at the front of the timeline
     current_detection_date = context.get('ftp_detected_at')
     
     if current_detection_date is None or ride_date >= current_detection_date:
@@ -145,7 +174,7 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
                 hr_source_strava_id = %s, 
                 hr_detected_at = %s
             WHERE athlete_id = %s
-        """, (active_ftp, context['strava_id'], ride_date, active_hr, context['strava_id'], ride_date, athlete_id))
+        """, (active_ftp, ftp_sid, ftp_date, active_hr, hr_sid, hr_date, athlete_id))
     
     return active_ftp, active_hr
 

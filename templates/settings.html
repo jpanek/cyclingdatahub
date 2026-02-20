@@ -51,26 +51,53 @@
             </div>
         </div>
 
+        <!-- Current max values for FPT and HR with links -->
         <div class="col-md-5">
             <div class="card shadow-sm bg-light border-0">
                 <div class="card-header bg-transparent fw-bold border-0">System Detected Baselines</div>
                 <div class="card-body">
-                    <div class="mb-3">
+                    
+                    <div class="mb-4">
                         <label class="text-muted d-block small">Detected FTP</label>
-                        <span class="fs-4 fw-bold text-primary">{{ user.detected_ftp or '---' }} W</span>
+                        <span class="fs-4 fw-bold text-primary d-block">{{ user.detected_ftp or '---' }} W</span>
+                        
+                        {% if user.ftp_source_strava_id %}
+                        <div class="mt-1">
+                            <a href="{{ url_for('main.activity_detail', strava_id=user.ftp_source_strava_id) }}" 
+                               class="text-primary text-decoration-none small fw-semibold" 
+                               style="font-size: 0.75rem;">
+                               <i class="bi bi-link-45deg"></i> View Peak Ride
+                            </a>
+                            {% if user.ftp_detected_at %}
+                            <span class="text-muted ms-1" style="font-size: 0.7rem;">({{ user.ftp_detected_at.strftime('%Y-%m-%d') }})</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
+        
                     <div class="mb-3">
                         <label class="text-muted d-block small">Detected Max HR</label>
-                        <span class="fs-4 fw-bold text-danger">{{ user.detected_max_hr or '---' }} bpm</span>
+                        <span class="fs-4 fw-bold text-danger d-block">{{ user.detected_max_hr or '---' }} bpm</span>
+                        
+                        {% if user.hr_source_strava_id %}
+                        <div class="mt-1">
+                            <a href="{{ url_for('main.activity_detail', strava_id=user.hr_source_strava_id) }}" 
+                               class="text-danger text-decoration-none small fw-semibold" 
+                               style="font-size: 0.75rem;">
+                               <i class="bi bi-link-45deg"></i> View Peak Ride
+                            </a>
+                            {% if user.hr_detected_at %}
+                            <span class="text-muted ms-1" style="font-size: 0.7rem;">({{ user.hr_detected_at.strftime('%Y-%m-%d') }})</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
-                    <hr>
-                    <div class="text-muted small">
-                        <i class="bi bi-clock-history"></i> Last Updated:<br>
-                        {{ user.updated_at.strftime('%Y-%m-%d %H:%M') if user.updated_at else 'No sync data' }}
-                    </div>
+                    
                 </div>
             </div>
         </div>
+
+
     </div>
 </div>
 {% endblock %}
