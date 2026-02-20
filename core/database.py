@@ -80,7 +80,7 @@ def run_query(query, params=None):
 
 def get_db_all_athletes():
     conn = get_db_connection()
-    data = run_query("select athlete_id, firstname from users")
+    data = run_query("select athlete_id, firstname from users order by 1")
     return data
 
 def run_query_pd(query, params=None):

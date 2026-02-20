@@ -7,7 +7,7 @@ import requests
 from core.database import get_db_connection, save_db_user_profile
 import json, os
 from datetime import datetime
-import threading
+import subprocess
 from run_sync import run_sync
 
 """
@@ -106,21 +106,26 @@ def strava_callback():
 
         # ------------ NEW USER TIRGGER ACTIVITY LOAD -------------------
         if is_new_user:
-
-            # log to file as well:
             with open(LOG_PATH, "a") as log_file:
                 log_file.write(f"\n[{datetime.now()}] 🚀 NEW USER REGISTERED: {firstname} ({athlete_id})\n")
 
             print(f"[{datetime.now()}] 🚀 NEW USER: Starting background sync for {firstname} ({athlete_id})...", flush=True)
-            sync_thread = threading.Thread(
-                target=run_sync, 
-                args=(athlete_id, firstname),
-                daemon=True # This ensures the thread doesn't block the app from exiting
-            )
-            sync_thread.start()
             
-        else:
-            print(f"[{datetime.now()}] 🔄 RETURNING USER: {firstname} ({athlete_id}) logged in.", flush=True)
+            try:
+                # Use the exact same subprocess logic as your webhook
+                python_executable = os.path.join(current_app.config['BASE_PATH'], 'venv', 'bin', 'python')
+                script_path = os.path.join(current_app.config['BASE_PATH'], 'run_sync.py')
+                
+                with open(LOG_PATH, "a") as log_file:
+                    subprocess.Popen(
+                        [python_executable, "-u", script_path, str(athlete_id)], # No activity_id here, just athlete_id for full sync
+                        stdout=log_file,
+                        stderr=log_file,
+                        cwd=current_app.config['BASE_PATH']
+                    )
+            except Exception as e:
+                print(f"[{datetime.now()}] ERROR: Failed to start background sync subprocess: {e}")
+        # ------------ NEW USER TIRGGER ACTIVITY LOAD -------------------
 
 
     except Exception as e:

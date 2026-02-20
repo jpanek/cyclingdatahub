@@ -110,7 +110,9 @@ def run_sync(athlete_id, athlete_name="Athlete"):
             save_db_activities(conn, athlete_id, activities)
             print(f"\t✅ Loaded {len(activities)} activities.")
 
-            activities_to_process = activities[:10] if is_new_user else activities
+            from config import NEW_USER_STREAMS_LOAD_COUNT
+
+            activities_to_process = activities[:NEW_USER_STREAMS_LOAD_COUNT] if is_new_user else activities
 
             # ------------------------ Fetch Activity streams (details) -----------------------
             if not REFRESH_HISTORY or is_new_user:
