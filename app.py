@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask
+from flask import Flask, session
 from routes.main import main_bp
 from routes.ops import ops_bp
 from routes.api import api_bp
@@ -10,6 +10,10 @@ import config
 app = Flask(__name__)
 
 app.config.from_object(config)
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 # Register standard Flask routes from main.py
 app.register_blueprint(main_bp)
