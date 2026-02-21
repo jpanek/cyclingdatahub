@@ -76,7 +76,8 @@ s.aerobic_decoupling,
 s.peak_5s, 
 s.peak_1m, 
 s.peak_5m, 
-s.peak_20m
+s.peak_20m,
+CASE WHEN s.strava_id IS NULL THEN true ELSE false END as streams_missing
 FROM activities a
 LEFT JOIN activity_analytics s ON a.strava_id = s.strava_id
 WHERE a.athlete_id = %s

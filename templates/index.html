@@ -50,7 +50,7 @@
                         <a href="/performance" class="text-decoration-none text-dark stretched-link">Performance</a>
                     </h3>
                     <p class="text-muted small mb-0">
-                        Current FTP: {{ summary.manual_ftp or summary.detected_ftp }}W
+                        FTP {{ summary.manual_ftp or summary.detected_ftp }}W
                         {% if summary.ftp_date %}
                         •  Set on {{ summary.ftp_date.strftime('%b %d, %Y') }}
                         {% endif %}
@@ -98,7 +98,7 @@
                     </h3>
                     <p class="text-muted small mb-0">
                         
-                        {{ "{:,}".format(total_activity_count) }} activities • {{ "{:,}".format(total_streams_count) }} streams
+                        {{ "{:,}".format(total_activity_count) }} activities • {{ "{:,}".format(total_streams_count) }} activity details
                     </p>
                 </div>
             </div>

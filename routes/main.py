@@ -167,6 +167,7 @@ def activities_list():
         date_from, 
         f"{date_to} 23:59:59"
     ))
+    #print(activities)
 
     # Handle Export logic before rendering anything else
     if export_format == 'csv':
