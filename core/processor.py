@@ -21,22 +21,27 @@ def run_delayed_delete_recalc(athlete_id, ride_date):
     """
     from core.database import invalidate_analytics_from_date
     from core.crawl_analytics import sync_local_analytics
+    from config import ANALYTICS_RECALC_SIZE, LOG_PATH
     
     try:
-        # Ensure it's a string for the invalidation function
-        date_str = ride_date.strftime('%Y-%m-%d')
+        # 1. Apply Safety Buffer (Date - 1 day)
+        # Assuming ride_date is a date/datetime object from the DB
+        safety_dt = ride_date - timedelta(days=1)
+        date_str = safety_dt.strftime('%Y-%m-%d')
         
-        # 1. Clear everything from that date forward
+        # 2. Clear everything from that safety date forward
         invalidate_analytics_from_date(athlete_id, date_str)
         
-        # 2. Re-crawl to fill the metrics gap
+        # 3. Re-crawl to fill the metrics gap and recalculate rolling fitness
         sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE, target_athlete_id=athlete_id)
         
         with open(LOG_PATH, "a") as log_file:
-            log_file.write(f"[{datetime.now()}] BG_JOB: Delete-recalc finished for {athlete_id} from {date_str}.\n")
+            log_file.write(f"[{datetime.now()}] BG_JOB: Delete-recalc finished for {athlete_id} from {date_str} (including buffer).\n")
             
     except Exception as e:
-        print(f"Error in background delete-recalc: {e}")
+        # Since this runs in a thread, logging to file is better than just printing
+        with open(LOG_PATH, "a") as log_file:
+            log_file.write(f"[{datetime.now()}] BG_JOB ERROR: {str(e)}\n")
 
 def format_activities_to_markdown(rows):
     """

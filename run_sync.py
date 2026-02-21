@@ -1,6 +1,6 @@
 # run_sync.py
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, ANALYTICS_RECALC_SIZE, NEW_USER_PAGES_TO_FETCH
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
@@ -39,9 +39,12 @@ def sync_single_activity(athlete_id, activity_id):
 
             #6. Invalidate all activity analytics afterwards
             from core.database import invalidate_analytics_from_date
-            ride_date = activity.get('start_date_local')
-            invalidate_analytics_from_date(athlete_id,ride_date)
-            print(f"\t🚩Invalidated analytics for {athlete_id} from {ride_date} forward.")
+            ride_date_str = activity.get('start_date_local')
+            if ride_date_str:
+                ride_dt = datetime.strptime(ride_date_str[:10], '%Y-%m-%d')
+                safety_date = (ride_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+                invalidate_analytics_from_date(athlete_id,safety_date)
+                print(f"\t🚩Invalidated analytics for {athlete_id} from {safety_date} forward.")
 
             #7. actually run the analytics crawl:
             from core.crawl_analytics import sync_local_analytics
