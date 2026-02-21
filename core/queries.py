@@ -77,7 +77,11 @@ s.peak_5s,
 s.peak_1m, 
 s.peak_5m, 
 s.peak_20m,
-CASE WHEN s.strava_id IS NULL THEN true ELSE false END as streams_missing
+NOT EXISTS (
+        SELECT 1 FROM activity_streams st 
+        WHERE st.strava_id = a.strava_id 
+        LIMIT 1
+    ) as streams_missing
 FROM activities a
 LEFT JOIN activity_analytics s ON a.strava_id = s.strava_id
 WHERE a.athlete_id = %s
