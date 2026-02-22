@@ -240,6 +240,7 @@ SELECT
     t.start_date_local::date as date,
     t.name,
     t.type,
+    t.distance / 1000.0 as "Distance_km",
     (t.moving_time / 60) as "Duration_min",
     t.kilojoules as "Work_kJ",
     t.max_watts as "Max_Watts",
