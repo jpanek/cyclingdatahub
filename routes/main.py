@@ -9,7 +9,7 @@ from flask import (
 from datetime import datetime, timedelta
 from config import LOG_PATH
 from core.database import run_query
-from core.analysis import get_best_power_curve, get_performance_summary
+from core.analysis import get_best_power_curve, get_performance_summary, get_zone_descriptions
 from routes.auth import login_required
 from core.processor import format_activities_to_markdown
 from core.queries import (
@@ -121,6 +121,12 @@ def activity_detail(strava_id):
     """
     fitness_res = run_query(fitness_sql, (athlete_id, activity['start_date_local']))
     fitness_data = fitness_res[0] if fitness_res else None
+
+    zone_ranges = get_zone_descriptions(
+        activity.get('baseline_ftp'), 
+        activity.get('max_heartrate')
+    )
+    print(zone_ranges)
         
     return render_template(
         'activity_detail.html', 
@@ -129,7 +135,8 @@ def activity_detail(strava_id):
         next_id=next_id,
         best_power=best_curve,
         recent_activities=recent_activities,
-        fitness=fitness_data
+        fitness=fitness_data,
+        zone_ranges=zone_ranges
     )
 
 @main_bp.route('/performance')

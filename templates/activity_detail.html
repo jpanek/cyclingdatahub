@@ -241,25 +241,37 @@
     <div class="row mt-4">
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Power Distribution</div>
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>Power Distribution</span>
+                    <i class="bi bi-info-circle text-muted" style="cursor: help;" 
+                       data-bs-toggle="tooltip" data-bs-html="true"
+                       data-bs-title="{% for z in zone_ranges.power %}{{ z.name }}: {{ z.min }}-{{ z.max }}W<br>{% endfor %}"></i>
+                </div>
                 <div class="card-body">
                     {% if activity.power_tiz %}
                         {% set total_p = activity.power_tiz.values() | sum %}
-                        {% for zone, seconds in activity.power_tiz.items() %}
+                        {% for zone_name, seconds in activity.power_tiz.items() %}
                             {% set percent = (seconds / total_p * 100) | round | int %}
-                            <div class="mb-2">
+                            
+                            {# Use namespace to fix scoping #}
+                            {% set ns = namespace(range_text="") %}
+                            {% for r in zone_ranges.power %}
+                                {% if r.name == zone_name %}
+                                    {% set ns.range_text = r.min ~ " - " ~ r.max ~ "W" %}
+                                {% endif %}
+                            {% endfor %}
+
+                            <div class="mb-3" data-bs-toggle="tooltip" data-bs-title="{{ zone_name }}: {{ ns.range_text }}" style="cursor: help;">
                                 <div class="d-flex justify-content-between small">
-                                    <span class="fw-semibold">{{ zone }}</span>
+                                    <span class="fw-semibold">{{ zone_name }}</span>
                                     <span class="text-muted">{{ (seconds // 60) }}m {{ (seconds % 60) }}s ({{ percent }}%)</span>
                                 </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar {% if zone in ['Z1','Z2'] %}bg-success{% elif zone == 'Z3' %}bg-info{% elif zone == 'Z4' %}bg-warning{% else %}bg-danger{% endif %}" 
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar {% if zone_name in ['Z1','Z2'] %}bg-success{% elif zone_name == 'Z3' %}bg-info{% elif zone_name == 'Z4' %}bg-warning{% else %}bg-danger{% endif %}" 
                                          role="progressbar" style="width: {{ percent }}%"></div>
                                 </div>
                             </div>
                         {% endfor %}
-                    {% else %}
-                        <p class="text-muted small">No power zone data available.</p>
                     {% endif %}
                 </div>
             </div>
@@ -267,25 +279,37 @@
     
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Heart Rate Distribution</div>
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>Heart Rate Distribution</span>
+                    <i class="bi bi-info-circle text-muted" style="cursor: help;" 
+                       data-bs-toggle="tooltip" data-bs-html="true"
+                       data-bs-title="{% for z in zone_ranges.hr %}{{ z.name }}: {{ z.min }}-{{ z.max }}bpm<br>{% endfor %}"></i>
+                </div>
                 <div class="card-body">
                     {% if activity.hr_tiz %}
                         {% set total_h = activity.hr_tiz.values() | sum %}
-                        {% for zone, seconds in activity.hr_tiz.items() %}
+                        {% for zone_name, seconds in activity.hr_tiz.items() %}
                             {% set percent = (seconds / total_h * 100) | round | int %}
-                            <div class="mb-2">
+
+                            {# Use namespace to fix scoping #}
+                            {% set ns_hr = namespace(range_text="") %}
+                            {% for r in zone_ranges.hr %}
+                                {% if r.name == zone_name %}
+                                    {% set ns_hr.range_text = r.min ~ " - " ~ r.max ~ " bpm" %}
+                                {% endif %}
+                            {% endfor %}
+
+                            <div class="mb-3" data-bs-toggle="tooltip" data-bs-title="{{ zone_name }}: {{ ns_hr.range_text }}" style="cursor: help;">
                                 <div class="d-flex justify-content-between small">
-                                    <span class="fw-semibold">{{ zone }}</span>
+                                    <span class="fw-semibold">{{ zone_name }}</span>
                                     <span class="text-muted">{{ (seconds // 60) }}m ({{ percent }}%)</span>
                                 </div>
-                                <div class="progress" style="height: 8px;">
+                                <div class="progress" style="height: 10px;">
                                     <div class="progress-bar bg-danger" role="progressbar" 
-                                         style="width: {{ percent }}%; opacity: {{ 0.2 + (loop.index0 * 0.2) }};"></div>
+                                         style="width: {{ percent }}%; opacity: {{ 0.2 + (loop.index0 * 0.15) }};"></div>
                                 </div>
                             </div>
                         {% endfor %}
-                    {% else %}
-                        <p class="text-muted small">No HR zone data available.</p>
                     {% endif %}
                 </div>
             </div>
@@ -636,6 +660,14 @@
             setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy Summary'; }, 2000);
         });
     }
-    </script>
+</script>
+
+<script>
+    // Wait for the DOM and Bootstrap to be fully ready
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    });
+</script>
 
 {% endblock %}

@@ -3,7 +3,26 @@
 import numpy as np
 from core.database import run_query
 from datetime import datetime, timedelta
+import config
 
+def get_zone_descriptions(active_ftp, active_max_hr):
+    """
+    Calculates absolute min/max values for Power and HR zones.
+    Returns a dict formatted for template tooltips.
+    """
+    active_ftp = active_ftp or config.DEFAULT_FTP
+    active_max_hr = active_max_hr or config.DEFAULT_MAX_HR
+    
+    return {
+        'power': [
+            {"name": n, "min": int(active_ftp * low), "max": int(active_ftp * high)}
+            for n, low, high in config.POWER_ZONES
+        ],
+        'hr': [
+            {"name": n, "min": int(active_max_hr * low), "max": int(active_max_hr * high)}
+            for n, low, high in config.HR_ZONES
+        ]
+    }
 
 def sync_daily_fitness(athlete_id, start_date):
     """
