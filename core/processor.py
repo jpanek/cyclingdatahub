@@ -6,7 +6,8 @@ from core.analysis import (
     calculate_weighted_power, 
     get_interval_bests, 
     calculate_vam,
-    calculate_aerobic_decoupling
+    calculate_aerobic_decoupling,
+    calculate_time_in_zones
 )
 import numpy as np
 from psycopg2.extras import Json
@@ -36,7 +37,7 @@ def run_delayed_delete_recalc(athlete_id, ride_date):
         sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE, target_athlete_id=athlete_id)
         
         with open(LOG_PATH, "a") as log_file:
-            log_file.write(f"[{datetime.now()}] BG_JOB: Delete-recalc finished for {athlete_id} from {date_str} (including buffer).\n")
+            log_file.write(f"[{datetime.now()}] --> Aanlytics for {athlete_id} from {date_str} recalculated.\n")
             
     except Exception as e:
         # Since this runs in a thread, logging to file is better than just printing
@@ -230,6 +231,10 @@ def process_activity_metrics(strava_id, force=False):
     else:
         active_ftp, active_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
 
+    # 4b. Calculate time spent in zones:
+    power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, config.POWER_ZONES)
+    hr_tiz = calculate_time_in_zones(streams['heartrate_series'], active_hr, config.HR_ZONES)
+
     # 5. Training Load & Scoring
     avg_pwr = np.mean(streams['watts_series']) if streams['watts_series'] else 0
     avg_hr = np.mean(streams['heartrate_series']) if streams['heartrate_series'] else 0
@@ -252,14 +257,18 @@ def process_activity_metrics(strava_id, force=False):
         peak_5s_hr, peak_1m_hr, peak_5m_hr, peak_20m_hr,
         weighted_avg_power, baseline_ftp, max_vam, aerobic_decoupling,
         variability_index, efficiency_factor, intensity_score, 
-        training_stress_score, power_curve, updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        training_stress_score, power_curve, 
+        power_tiz, hr_tiz,
+        updated_at
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         weighted_avg_power = EXCLUDED.weighted_avg_power,
         baseline_ftp = EXCLUDED.baseline_ftp,
         intensity_score = EXCLUDED.intensity_score,
         training_stress_score = EXCLUDED.training_stress_score,
         power_curve = EXCLUDED.power_curve,
+        power_tiz = EXCLUDED.power_tiz,
+        hr_tiz = EXCLUDED.hr_tiz,
         updated_at = NOW();
     """
     
@@ -270,7 +279,8 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_hr_5s'), bests.get('peak_hr_1m'), 
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
         weighted_pwr, active_ftp, vam_val, decoupling_val,
-        vi_score, ef_score, if_score, tss_score, Json(curve_json)
+        vi_score, ef_score, if_score, tss_score, Json(curve_json),
+        Json(power_tiz), Json(hr_tiz)
     ))
 
     return True

@@ -37,7 +37,7 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
 
         # 1. Process pending activities if they exist
         if to_process:
-            print(f"\t{name} ({a_id}): Recomputing {len(to_process)} activities...")
+            print(f"\t🔄  {name} ({a_id}): Recomputing {len(to_process)} activities...")
             processed = 0
             first_date_in_batch = None
             try:

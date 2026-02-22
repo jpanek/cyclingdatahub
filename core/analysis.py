@@ -238,3 +238,24 @@ def get_performance_summary(athlete_id, months_limit=12):
         'all_time_peaks': all_time_peaks,
         'recent_peaks': recent_peaks
     }
+
+def calculate_time_in_zones(series, baseline, zone_config):
+    """
+    series: list/array of data points (1 sec interval)
+    baseline: FTP (for power) or Max HR (for heart rate)
+    zone_config: list of tuples (Name, Min%, Max%)
+    """
+    if not series or not baseline:
+        return {}
+
+    series = np.array(series)
+    tiz = {}
+    
+    for name, min_pct, max_pct in zone_config:
+        lower = baseline * min_pct
+        upper = baseline * max_pct
+        # Count seconds where data is between lower and upper bounds
+        seconds = int(np.sum((series >= lower) & (series < upper)))
+        tiz[name] = seconds
+        
+    return tiz

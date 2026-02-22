@@ -138,7 +138,8 @@ SELECT
     an.training_stress_score,
     an.power_curve,
     a.map_polyline,
-    s.altitude_series
+    s.altitude_series,
+    an.power_tiz, an.hr_tiz
 FROM activities a
 JOIN activity_streams s ON a.strava_id = s.strava_id
 LEFT JOIN activity_analytics an ON a.strava_id = an.strava_id

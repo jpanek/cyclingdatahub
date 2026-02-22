@@ -188,7 +188,7 @@ def strava_webhook():
                     thread.start()
                     
                 with open(LOG_PATH, "a") as log_file:
-                    log_file.write(f"[{datetime.now()}] WEBHOOK DELETE: Activity {activity_id} purged. BG recalc started.\n")
+                    log_file.write(f"[{datetime.now()}] WEBHOOK TRIGGER: Activity delete {activity_id} fired\n")
 
             except Exception as e:
                 print(f"[{datetime.now()}] WEBHOOK ERROR during delete: {e}")
