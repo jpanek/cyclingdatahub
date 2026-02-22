@@ -13,7 +13,11 @@
     .card-stat { border-radius: 12px; border: 1px solid #f1f3f5; transition: transform 0.2s; }
     .card-stat:hover { transform: translateY(-2px); }
     .text-value { font-weight: 700; letter-spacing: -1px; }
-    
+
+    #fitnessChart {
+        cursor: pointer;
+    }
+
     /* Tooltip styling for better readability */
     .tooltip-inner { text-align: left !important; padding: 10px !important; }
 </style>
@@ -28,6 +32,7 @@
             <a href="?days=30" class="btn btn-sm btn-subtle {{ 'active' if current_days == 30 }}">30D</a>
             <a href="?days=90" class="btn btn-sm btn-subtle {{ 'active' if current_days == 90 }}">90D</a>
             <a href="?days=180" class="btn btn-sm btn-subtle {{ 'active' if current_days == 180 }}">180D</a>
+            <a href="?days=365" class="btn btn-sm btn-subtle {{ 'active' if current_days == 365 }}">1Y</a>
         </div>
     </div>
 
@@ -102,15 +107,69 @@
             data: {
                 labels: raw.map(d => d.d),
                 datasets: [
-                    { type: 'line', label: 'CTL (Fitness)', data: raw.map(d => d.ctl), borderColor: '#2196F3', borderWidth: 3, pointRadius: 0, tension: 0.4, yAxisID: 'y' },
-                    { type: 'line', label: 'ATL (Fatigue)', data: raw.map(d => d.atl), borderColor: '#ff9800', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, tension: 0.4, yAxisID: 'y' },
-                    { type: 'line', label: 'TSB (Form)', data: raw.map(d => d.tsb), borderColor: '#4caf50', borderWidth: 1, backgroundColor: 'rgba(76, 175, 80, 0.05)', fill: true, pointRadius: 0, tension: 0.4, yAxisID: 'y' },
-                    { type: 'bar', label: 'Daily TSS', data: raw.map(d => d.tss), backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 2, yAxisID: 'y1' }
+                    { 
+                        type: 'line', 
+                        label: 'CTL (Fitness)', 
+                        data: raw.map(d => d.ctl), 
+                        borderColor: '#2196F3', // Strong Blue
+                        borderWidth: 3, 
+                        pointRadius: 0, 
+                        tension: 0.4, 
+                        yAxisID: 'y',
+                        zIndex: 3 // Keep on top
+                    },
+                    { 
+                        type: 'line', 
+                        label: 'ATL (Fatigue)', 
+                        data: raw.map(d => d.atl), 
+                        borderColor: '#ced4da', // Muted Gray
+                        borderWidth: 2.5, 
+                        borderDash: [5, 5], 
+                        pointRadius: 0, 
+                        tension: 0.4, 
+                        yAxisID: 'y',
+                        zIndex: 1
+                    },
+                    { 
+                        type: 'line', 
+                        label: 'TSB (Form)', 
+                        data: raw.map(d => d.tsb), 
+                        borderColor: '#6c757d', // Neutral Gray line
+                        borderWidth: 1, 
+                        fill: {
+                            target: 'origin',
+                            above: 'rgba(40, 167, 69, 0.15)', // Success Green (Fresh)
+                            below: 'rgba(220, 53, 69, 0.15)'  // Danger Red (Tired)
+                        }, 
+                        pointRadius: 0, 
+                        tension: 0.4, 
+                        yAxisID: 'y',
+                        zIndex: 2
+                    },
+                    { 
+                        type: 'bar', 
+                        label: 'Daily TSS', 
+                        data: raw.map(d => d.tss), 
+                        backgroundColor: 'rgba(210, 210, 210)', // Almost ghost-like bars
+                        hoverBackgroundColor: 'rgba(0, 0, 0, 0.1)',
+                        borderRadius: 2, 
+                        yAxisID: 'y1',
+                        zIndex: 0
+                    }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const clickedDate = raw[index].d; // This is 'YYYY-MM-DD'
+                        
+                        // Redirect to activities page filtered for this exact day
+                        window.location.href = `/activities?from=${clickedDate}&to=${clickedDate}`;
+                    }
+                },
                 interaction: { 
                     mode: 'index', 
                     intersect: false 
@@ -145,8 +204,13 @@
                                     label += context.parsed.y.toFixed(1);
                                 }
                                 return label;
+                            },
+                            footer: function(){
+                                return '(Click to view)'
                             }
-                        }
+                        },
+                        footerFont: { size: 11, weight: 'bold'},
+                        footerColor: '#FC5200'
                     }
                 },
                 scales: {

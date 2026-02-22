@@ -74,20 +74,40 @@
         </div>
     </div>
 
-    <!-- Ride summary I: Distance, Avg Power, Avg HR, Elevation -->
+    <!-- Ride summary I: Distance, Avg Speed, Avg Power, Avg HR, Elevation -->
     <div class="row g-2 mb-4">
+        <!-- Distance -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Distance</strong>
                 <span class="fw-bold">{{ "%.1f"|format(activity.distance_km | default(0, true)) }} km</span>
             </div>
         </div>
+
+        <!-- Speed/pace -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
-                <strong class="small text-muted">Avg Speed</strong>
-                <span class="fw-bold">{{ "%.1f"|format(activity.average_speed * 3.6 if activity.average_speed else 0) }} km/h</span>
+                {% if activity.type == 'Run' or activity.type == 'VirtualRun' %}
+                    <strong class="small text-muted">Avg Pace</strong>
+                    <span class="fw-bold">
+                        {% if activity.average_speed and activity.average_speed > 0 %}
+                            {# Convert m/s to seconds per km: 1000 / avg_speed #}
+                            {% set total_seconds_per_km = 1000 / activity.average_speed %}
+                            {% set pace_min = (total_seconds_per_km // 60) | int %}
+                            {% set pace_sec = (total_seconds_per_km % 60) | int %}
+                            {{ pace_min }}:{{ "%02d"|format(pace_sec) }} <small class="text-muted">/km</small>
+                        {% else %}
+                            0:00
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <strong class="small text-muted">Avg Speed</strong>
+                    <span class="fw-bold">{{ "%.1f"|format(activity.average_speed * 3.6 if activity.average_speed else 0) }} km/h</span>
+                {% endif %}
             </div>
         </div>
+
+        <!-- Duration -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Duration</strong>
@@ -100,26 +120,24 @@
                 </span>
             </div>
         </div>
-        <!--
-        <div class="col-6 col-md-2">
-            <div class="card p-2 shadow-sm h-100">
-                <strong class="small text-muted">Max Speed</strong>
-                <span class="fw-bold">{{ "%.1f"|format(activity.max_speed * 3.6 if activity.max_speed else 0) }} km/h</span>
-            </div>
-        </div>
-        -->
+
+        <!-- Avg Power -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Avg Power</strong>
                 <span class="fw-bold">{{ (activity.average_watts | default(0, true)) | round | int }} W</span>
             </div>
         </div>
+
+        <!-- Avg HR -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Avg HR</strong>
                 <span class="fw-bold">{{ (activity.average_heartrate | default(0, true)) | round | int }} bpm</span>
             </div>
         </div>
+
+        <!-- Elevation -->
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100">
                 <strong class="small text-muted">Elevation</strong>
