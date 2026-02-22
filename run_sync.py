@@ -5,7 +5,7 @@ from config import REFRESH_USER_PROFILE, REFRESH_HISTORY, ANALYTICS_RECALC_SIZE,
 from core.database import (
     get_db_connection, get_db_user, save_db_user_profile, 
     get_db_latest_timestamp_for_athlete, save_db_activities,
-    get_db_all_athletes
+    get_db_all_athletes, run_query
 )
 from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list, fetch_activity_detail
 from core.processor import process_activity_metrics
@@ -39,12 +39,17 @@ def sync_single_activity(athlete_id, activity_id):
 
             #6. Invalidate all activity analytics afterwards
             from core.database import invalidate_analytics_from_date
-            ride_date_str = activity.get('start_date_local')
-            if ride_date_str:
-                ride_dt = datetime.strptime(ride_date_str[:10], '%Y-%m-%d')
-                safety_date = (ride_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+
+            # =======================================================================================
+            # Add extra day for invalidation & analytical recalc
+            res = run_query("SELECT start_date_local FROM activities WHERE strava_id = %s", (activity_id,))
+            db_ride_date = res[0]['start_date_local'] if res else None
+
+            if db_ride_date:
+                safety_date = (db_ride_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 invalidate_analytics_from_date(athlete_id,safety_date)
                 print(f"\t🚩Invalidated analytics for {athlete_id} from {safety_date} forward.")
+            # =======================================================================================
 
             #7. actually run the analytics crawl:
             from core.crawl_analytics import sync_local_analytics

@@ -3,6 +3,7 @@
 import psycopg2
 from psycopg2.extras import execute_batch, Json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from psycopg2.extras import RealDictCursor
 import pandas as pd
 from core.map_utils import process_activity_map
@@ -210,9 +211,33 @@ def save_db_activities(conn, athlete_id, activities):
                 tolerance=MAP_SUMMARY_TOLERANCE
             )
 
+        # ===========================================================================
+        #workaround for stupid timezone of Jakarta for my virtual rides:
+        # 1. Start with the provided local time
+        final_start_date = a.get('start_date_local')
+        
+        # 2. Targeted fix for the "Jakarta Zwift" bug
+        # Check athlete, activity type, and specifically the incorrect timezone
+        is_me = (athlete_id == 12689416)
+        is_virtual = (a.get('type') == 'VirtualRide')
+        is_jakarta = (a.get('timezone') == "(GMT+07:00) Asia/Jakarta")
+
+        if is_me and is_virtual and is_jakarta:
+            utc_str = a.get('start_date')
+            if utc_str:
+                # Convert UTC to Prague time (DST aware)
+                utc_dt = datetime.fromisoformat(utc_str.replace('Z', '+00:00'))
+                prague_dt = utc_dt.astimezone(ZoneInfo("Europe/Prague"))
+                
+                # Update the date to your actual home time
+                final_start_date = prague_dt.strftime('%Y-%m-%dT%H:%M:%S')
+        # ===========================================================================
+
         data.append({
             'id': a['id'], 'athlete_id': athlete_id, 'name': a.get('name'),
-            'type': a.get('type'), 'start_date': a.get('start_date_local'),
+            'type': a.get('type'), 
+            #'start_date': a.get('start_date_local'),
+            'start_date': final_start_date,
             'dist': a.get('distance'), 'mov_t': a.get('moving_time'),
             'ela_t': a.get('elapsed_time'), 'elev': a.get('total_elevation_gain'),
             'avg_s': a.get('average_speed'), 'max_s': a.get('max_speed'),

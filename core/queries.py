@@ -77,6 +77,7 @@ s.peak_5s,
 s.peak_1m, 
 s.peak_5m, 
 s.peak_20m,
+s.training_stress_score as tss,
 NOT EXISTS (
         SELECT 1 FROM activity_streams st 
         WHERE st.strava_id = a.strava_id 

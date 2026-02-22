@@ -68,6 +68,7 @@
                         <th>Distance</th>
                         <th>Duration</th>
                         <th>Avg Power</th>
+                        <th>TSS</th>
                         <th>Avg HR</th>
                     </tr>
                 </thead>
@@ -86,7 +87,7 @@
                         <td class="ps-3 text-nowrap">
                             {{ act.start_datetime.strftime('%d %b %Y') if act.start_datetime else '-' }}
                         </td>
-                        <td class="fw-semibold text-truncate" style="max-width: 250px;" title="{{ act.name }}">
+                        <td class="fw-semibold text-truncate" style="max-width: 150px;" title="{{ act.name }}">
                             {{ act.name }}
                             {% if act.streams_missing %}
                                 <small class="fw-normal" style="font-size: 0.7rem;">(Summary Only)</small>
@@ -101,6 +102,9 @@
                         <td>{{ "{:.1f}".format(act.duration_hours | default(0)) }} h</td>
                         <td>
                             {{ (act.average_watts | default(0)) | int }} W
+                        </td>
+                        <td>
+                            {{ (act.tss | default(0)) | int }}
                         </td>
                         <td>{{ (act.average_heartrate | default(0)) | int }} bpm</td>
                     </tr>
