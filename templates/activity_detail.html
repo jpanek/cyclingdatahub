@@ -56,14 +56,20 @@
                     {{ activity.type }}
                 </span>
             </div>
-            
+
             <div>
                 <a href="https://www.strava.com/activities/{{ activity.strava_id }}" 
                    target="_blank" 
-                   class="text-decoration-none"
+                   class="text-decoration-none me-3"
                    style="color: #FC5200; font-weight: bold; font-size: 0.8rem;">
                    View on Strava
                 </a>
+                <button id="copyBtn" 
+                        onclick="copySummary()" 
+                        class="btn btn-sm btn-outline-secondary border-0 p-0" 
+                        style="font-size: 0.8rem; vertical-align: baseline;">
+                        <i class="bi bi-clipboard"></i> Copy Summary
+                </button>
             </div>
         </div>
     
@@ -516,4 +522,49 @@
         document.getElementById('activityMap').innerHTML = "<p style='padding: 20px; text-align: center; background: #eee;'>No GPS data available for this activity.</p>";
     }
 </script>
+
+
+<script>
+function copySummary() {
+    const isRun = "{{ activity.type }}".includes("Run");
+    let paceStr = isRun ? 
+        (() => {
+            const totalSecs = 1000 / parseFloat("{{ activity.average_speed or 0 }}");
+            const m = Math.floor(totalSecs / 60);
+            const s = Math.round(totalSecs % 60);
+            return `${m}:${s < 10 ? '0' + s : s}/km`;
+        })() : "{{ '%.1f'|format(activity.average_speed * 3.6 if activity.average_speed else 0) }} km/h";
+
+    const summary = [
+        `### Activity: {{ activity.name }}`,
+        `**Date:** \`{{ activity.start_date_local.strftime('%Y-%m-%d %H:%M') }}\` | **Type:** \`{{ activity.type }}\``,
+        `---`,
+        `**VOLUME**`,
+        `- **Dist/Time:** \`{{ '%.1f'|format(activity.distance_km or 0) }} km\` | \`{{ (activity.moving_time // 3600) }}h {{ (activity.moving_time % 3600 // 60) }}m {{ activity.moving_time % 60 }}s\``,
+        `- **Pace/Work:** \`${paceStr}\` | \`{{ activity.total_elevation_gain | round | int }}m\` | \`{{ activity.kilojoules | round | int }}kJ\``,
+        ``,
+        `**POWER & INTENSITY**`,
+        `- **Power:** Avg \`{{ activity.average_watts | round | int }}W\` | NP \`{{ activity.weighted_avg_power or 0 }}W\` | Max \`{{ activity.max_watts | round | int }}W\` | Baseline FTP \`{{ activity.baseline_ftp or 0 }}W\``,
+        `- **Metrics:** TSS: \`{{ activity.training_stress_score or 0 }}\` | IF: \`{{ activity.intensity_score or 0 }}\` | VI: \`{{ activity.variability_index or 0 }}\``,
+        ``,
+        `**PHYSIOLOGY**`,
+        `- **Heart Rate:** Avg \`{{ activity.average_heartrate | round | int }}bpm\` | Max \`{{ activity.max_heartrate | round | int }}bpm\``,
+        `- **Cadence:** Avg \`{{ activity.average_cadence | round | int if activity.average_cadence else 0 }} rpm\``,
+        `- **Efficiency:** EF: \`{{ activity.efficiency_factor or 0 }}\` | Decoupling: \`{{ activity.aerobic_decoupling or 0 }}%\``,
+        ``,
+        `**INTERVAL POWER PEAKS**`,
+        `- **Bests:** 5s: \`{{ activity.interval_bests['5s']['power'] or 0 }}W\` | 1m: \`{{ activity.interval_bests['1m']['power'] or 0 }}W\` | 5m: \`{{ activity.interval_bests['5m']['power'] or 0 }}W\` | 20m: \`{{ activity.interval_bests['20m']['power'] or 0 }}W\``,
+        ``,
+        `**TRAINING LOAD (EOD)**`,
+        `- **Stats:** CTL: \`{{ fitness.ctl or '---' }}\` | ATL: \`{{ fitness.atl or '---' }}\` | TSB: \`{{ fitness.tsb or '---' }}\``
+    ].join('\n');
+
+    navigator.clipboard.writeText(summary).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+        setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy Summary'; }, 2000);
+    });
+}
+</script>
+
 {% endblock %}

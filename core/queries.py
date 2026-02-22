@@ -129,12 +129,13 @@ SELECT
     a.distance / 1000.0 as distance_km, 
     a.moving_time, a.total_elevation_gain, a.average_watts, a.average_heartrate,
     a.average_speed, a.max_speed, a.max_watts, a.max_heartrate,
+    a.average_cadence, a.kilojoules,
     s.time_series, s.watts_series, s.heartrate_series, s.cadence_series, s.velocity_series, s.latlng_series,
     an.peak_5s, an.peak_1m, an.peak_5m, an.peak_20m, 
     an.peak_5s_hr, an.peak_1m_hr, an.peak_5m_hr, an.peak_20m_hr,
     an.weighted_avg_power, an.baseline_ftp, an.aerobic_decoupling,
     an.variability_index, an.efficiency_factor, an.intensity_score,
-    an.training_stress_score, -- Added this
+    an.training_stress_score,
     an.power_curve,
     a.map_polyline,
     s.altitude_series
