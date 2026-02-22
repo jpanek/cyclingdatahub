@@ -541,7 +541,7 @@ function copySummary() {
         `---`,
         `**VOLUME**`,
         `- **Dist/Time:** \`{{ '%.1f'|format(activity.distance_km or 0) }} km\` | \`{{ (activity.moving_time // 3600) }}h {{ (activity.moving_time % 3600 // 60) }}m {{ activity.moving_time % 60 }}s\``,
-        `- **Pace/Work:** \`${paceStr}\` | \`{{ activity.total_elevation_gain | round | int }}m\` | \`{{ activity.kilojoules | round | int }}kJ\``,
+        `- **Pace/Elevation/Work:** \`${paceStr}\` | \`{{ activity.total_elevation_gain | round | int }}m\` | \`{{ activity.kilojoules | round | int }}kJ\``,
         ``,
         `**POWER & INTENSITY**`,
         `- **Power:** Avg \`{{ activity.average_watts | round | int }}W\` | NP \`{{ activity.weighted_avg_power or 0 }}W\` | Max \`{{ activity.max_watts | round | int }}W\` | Baseline FTP \`{{ activity.baseline_ftp or 0 }}W\``,
