@@ -124,9 +124,8 @@ def activity_detail(strava_id):
 
     zone_ranges = get_zone_descriptions(
         activity.get('baseline_ftp'), 
-        activity.get('max_heartrate')
+        activity.get('baseline_max_hr')
     )
-    print(zone_ranges)
         
     return render_template(
         'activity_detail.html', 

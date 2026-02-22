@@ -255,15 +255,16 @@ def process_activity_metrics(strava_id, force=False):
     INSERT INTO activity_analytics (
         strava_id, peak_5s, peak_1m, peak_5m, peak_20m, 
         peak_5s_hr, peak_1m_hr, peak_5m_hr, peak_20m_hr,
-        weighted_avg_power, baseline_ftp, max_vam, aerobic_decoupling,
+        weighted_avg_power, baseline_ftp, baseline_max_hr, max_vam, aerobic_decoupling,
         variability_index, efficiency_factor, intensity_score, 
         training_stress_score, power_curve, 
         power_tiz, hr_tiz,
         updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         weighted_avg_power = EXCLUDED.weighted_avg_power,
         baseline_ftp = EXCLUDED.baseline_ftp,
+        baseline_max_hr = EXCLUDED.baseline_max_hr,
         intensity_score = EXCLUDED.intensity_score,
         training_stress_score = EXCLUDED.training_stress_score,
         power_curve = EXCLUDED.power_curve,
@@ -278,7 +279,7 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_power_5m'), bests.get('peak_power_20m'),
         bests.get('peak_hr_5s'), bests.get('peak_hr_1m'), 
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
-        weighted_pwr, active_ftp, vam_val, decoupling_val,
+        weighted_pwr, active_ftp, active_hr, vam_val, decoupling_val,
         vi_score, ef_score, if_score, tss_score, Json(curve_json),
         Json(power_tiz), Json(hr_tiz)
     ))
