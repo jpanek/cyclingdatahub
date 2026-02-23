@@ -252,7 +252,16 @@ def settings():
         return redirect(url_for('main.index'))
         
     user = results[0]
-    return render_template('settings.html', user=user)
+
+    effective_ftp = user['manual_ftp'] or user['detected_ftp'] or 0
+    effective_hr = user['manual_max_hr'] or user['detected_max_hr'] or 0
+
+    zone_ranges = get_zone_descriptions(effective_ftp, effective_hr)
+
+    return render_template('settings.html', 
+                           user=user,
+                           zone_ranges=zone_ranges
+    )
 
 @main_bp.route('/fitness')
 @login_required

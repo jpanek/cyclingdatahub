@@ -97,6 +97,62 @@
             </div>
         </div>
 
+        <!-- Power and HR zones -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+
+                    <div class="card-body p-0">
+                        <div class="row g-0">
+                            <div class="col-md-6 border-end">
+                                <div class="p-2 bg-light border-bottom text-center">
+                                    <small class="fw-bold text-primary text-uppercase">Power Zones</small>
+                                </div>
+                                <table class="table table-hover mb-0">
+                                    <tbody>
+                                        {% for zone in zone_ranges.power %}
+                                        <tr class="text-center">
+                                            <td class="align-middle" style="width: 30%;">
+                                                <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ zone.name }}</span>
+                                            </td>
+                                            <td class="align-middle">
+                                                <span class="fw-bold">{{ zone.min }}</span> 
+                                                <span class="text-muted small mx-1">—</span> 
+                                                <span class="fw-bold">{% if zone.max > 2000 %}Max{% else %}{{ zone.max }}{% endif %}</span>
+                                                <span class="text-muted small ms-1">W</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 bg-light border-bottom text-center">
+                                    <small class="fw-bold text-danger text-uppercase">Heart Rate Zones</small>
+                                </div>
+                                <table class="table table-hover mb-0">
+                                    <tbody>
+                                        {% for zone in zone_ranges.hr %}
+                                        <tr class="text-center">
+                                            <td class="align-middle" style="width: 30%;">
+                                                <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ zone.name }}</span>
+                                            </td>
+                                            <td class="align-middle">
+                                                <span class="fw-bold">{{ zone.min }}</span> 
+                                                <span class="text-muted small mx-1">—</span> 
+                                                <span class="fw-bold">{% if zone.max > 250 %}Max{% else %}{{ zone.max }}{% endif %}</span>
+                                                <span class="text-muted small ms-1">bpm</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 </div>
