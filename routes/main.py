@@ -197,6 +197,12 @@ def activities_list():
 @main_bp.route('/log')
 @login_required
 def show_logs():
+    
+    admin_id = current_app.config.get('USER_STRAVA_ATHLETE_ID')
+    if session.get('athlete_id') != admin_id:
+        from flask import abort
+        abort(403)
+
     # Define allowed logs for security
     log_map = {
         'sync': 'run_sync_log.log',

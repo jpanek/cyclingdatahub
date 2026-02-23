@@ -87,6 +87,36 @@ def sync_activities():
     # Force redirect back to the logs page, specifically the sync log view
     return redirect(url_for('ops.show_logs', type='sync'))
 
+@ops_bp.route('/sync-crawler')
+@login_required
+def sync_crawler():
+    athlete_id = session.get('athlete_id')
+    if not athlete_id:
+        flash("You must be logged in to sync.", "danger")
+        return redirect(url_for('main.index'))
+
+    try:
+        python_executable = os.path.join(BASE_PATH, 'venv', 'bin', 'python')
+        crawler_log_path = os.path.join(BASE_PATH, 'logs', 'crawler_log.log')
+        
+        # We chain the commands using && so Analytics only runs if Backfill succeeds
+        # Using shell=True for the chaining logic
+        cmd = f"{python_executable} -u -m core.crawl_backfill && {python_executable} -u -m core.crawl_analytics"
+        
+        with open(crawler_log_path, "a") as log_file:
+            subprocess.Popen(
+                cmd,
+                shell=True,
+                stdout=log_file,
+                stderr=log_file,
+                cwd=BASE_PATH
+            )
+        flash("Crawler process (Load & Recalc) started.", "info")
+    except Exception as e:
+        flash(f"Crawler failed to start: {str(e)}", "danger")
+    
+    return redirect(url_for('main.show_logs', type='crawler'))
+
 @ops_bp.route('/webhook', methods=['GET', 'POST'])
 def strava_webhook():
     """
