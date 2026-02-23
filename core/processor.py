@@ -207,9 +207,6 @@ def process_activity_metrics(strava_id, force=False):
     has_power = bool(stream_data[0]['watts_series']) and (activity_type not in config.IGNORE_POWER_ACTIVITY)
     has_hr = bool(stream_data[0]['heartrate_series'])
 
-    print(f"Has power data: {has_power}")
-    print(f"Has hr data: {has_hr}")
-
     if not has_power and not has_hr:
         return True
 
