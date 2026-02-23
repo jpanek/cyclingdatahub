@@ -268,16 +268,18 @@ def process_activity_metrics(strava_id, force=False):
     else:
         if_score, tss_score = 0, 0
 
-    print("--- TRUTH BLOCK ---")
-    print(f"Has Power: {has_power}")
-    print(f"Hours: {duration_sec / 3600}")
-    print(f"IF: {if_score}")
-    print(f"IF Squared: {if_score ** 2}")
+    if False:
+        #debugging 
+        print("--- TRUTH BLOCK ---")
+        print(f"Has Power: {has_power}")
+        print(f"Hours: {duration_sec / 3600}")
+        print(f"IF: {if_score}")
+        print(f"IF Squared: {if_score ** 2}")
     
-    calculated_manually = (duration_sec / 3600) * (if_score ** 2) * 100
-    print(f"Manual Calc: {calculated_manually}")
-    print(f"Variable tss_score: {tss_score}")
-    print("-------------------")
+        calculated_manually = (duration_sec / 3600) * (if_score ** 2) * 100
+        print(f"Manual Calc: {calculated_manually}")
+        print(f"Variable tss_score: {tss_score}")
+        print("-------------------")
 
 
     # 6. Power Curve Generation
