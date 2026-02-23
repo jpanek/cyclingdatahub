@@ -48,7 +48,7 @@ def reprocess_all():
             FROM activities a
             INNER JOIN activity_streams s ON a.strava_id = s.strava_id
             WHERE a.athlete_id = %s 
-              AND a.type = ANY(%s)
+              --AND a.type = ANY(%s)
             ORDER BY a.start_date_local ASC
         """, (a_id, config.ANALYTICS_ACTIVITIES))
         
