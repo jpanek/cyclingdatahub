@@ -192,21 +192,31 @@ def process_activity_metrics(strava_id, force=False):
         "SELECT watts_series, heartrate_series, altitude_series, time_series FROM activity_streams WHERE strava_id = %s", 
         (strava_id,)
     )
-    if not stream_data or not stream_data[0]['watts_series']:
+    
+    if not stream_data:
+        return True
+    
+    context = get_athlete_context(strava_id)
+    if not context:
+        return True
+    
+    athlete_id = context['athlete_id']
+    ride_date = context['start_date_local']
+    activity_type = context['type']
+    
+    has_power = bool(stream_data[0]['watts_series']) and (activity_type not in config.IGNORE_POWER_ACTIVITY)
+    has_hr = bool(stream_data[0]['heartrate_series'])
+
+    print(f"Has power data: {has_power}")
+    print(f"Has hr data: {has_hr}")
+
+    if not has_power and not has_hr:
         return True
 
     if not force:
         exists = run_query("SELECT 1 FROM activity_analytics WHERE strava_id = %s", (strava_id,))
         if exists: 
             return False
-
-    # 2. Context & Guards
-    context = get_athlete_context(strava_id)
-    if not context or context['type'] not in config.ANALYTICS_ACTIVITIES:
-        return True
-
-    athlete_id = context['athlete_id']
-    ride_date = context['start_date_local']
     
     streams = {
         'watts_series': stream_data[0]['watts_series'],
@@ -217,12 +227,13 @@ def process_activity_metrics(strava_id, force=False):
 
 
     # 3. Power & HR Math
-    weighted_pwr = calculate_weighted_power(streams['watts_series'])
-    bests = get_interval_bests(streams)
+    weighted_pwr = calculate_weighted_power(streams['watts_series']) if has_power else 0
+    bests = get_interval_bests(streams) if has_power else get_interval_bests({'heartrate_series': streams['heartrate_series'], 'time_series': streams['time_series']})
+    
     vam_val = calculate_vam(streams['altitude_series'], streams['time_series'])
-    decoupling_val = calculate_aerobic_decoupling(streams['watts_series'], streams['heartrate_series'])    
-    ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if bests.get('peak_power_20m') else 0
-    current_max_hr = int(max(streams['heartrate_series'])) if streams['heartrate_series'] else 0
+    decoupling_val = calculate_aerobic_decoupling(streams['watts_series'], streams['heartrate_series']) if (has_power and has_hr) else 0
+    ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if (has_power and bests.get('peak_power_20m')) else 0
+    current_max_hr = int(max(streams['heartrate_series'])) if (has_hr and len(streams['heartrate_series']) > 0) else 0
 
     # 4. Fitness Baseline Resolution
     if context['manual_ftp'] and context['manual_ftp_updated_at'] and ride_date >= context['manual_ftp_updated_at']:
@@ -232,23 +243,37 @@ def process_activity_metrics(strava_id, force=False):
         active_ftp, active_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
 
     # 4b. Calculate time spent in zones:
-    power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, config.POWER_ZONES)
-    hr_tiz = calculate_time_in_zones(streams['heartrate_series'], active_hr, config.HR_ZONES)
+    power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, config.POWER_ZONES) if has_power else {}
+    hr_tiz = calculate_time_in_zones(streams['heartrate_series'], active_hr, config.HR_ZONES) if has_hr else {}
 
     # 5. Training Load & Scoring
-    avg_pwr = np.mean(streams['watts_series']) if streams['watts_series'] else 0
+    avg_pwr = np.mean(streams['watts_series']) if has_power else 0
     avg_hr = np.mean(streams['heartrate_series']) if streams['heartrate_series'] else 0
     duration_sec = streams['time_series'][-1] if streams['time_series'] else 0
     
-    vi_score = round(weighted_pwr / avg_pwr, 2) if avg_pwr > 0 else 1.0
-    ef_score = round(weighted_pwr / avg_hr, 2) if avg_hr > 0 else 0
-    if_score = round(weighted_pwr / active_ftp, 2) if active_ftp > 0 else 0
-    tss_score = round(((duration_sec * weighted_pwr * if_score) / (active_ftp * 3600)) * 100, 1) if active_ftp > 0 else 0
+    vi_score = round(weighted_pwr / avg_pwr, 2) if (has_power and avg_pwr > 0) else 1.0
+    ef_score = round(weighted_pwr / avg_hr, 2) if (has_power and has_hr and avg_hr > 0) else 0
+    
+    # Smart TSS / IF Calculation
+    if has_power and active_ftp > 0:
+        # Standard Power-based scoring
+        if_score = round(weighted_pwr / active_ftp, 2)
+        tss_score = round(((duration_sec * weighted_pwr * if_score) / (active_ftp * 3600)) * 100, 1)
+    elif has_hr and active_hr > 0:
+        # HRSS Fallback (Heart Rate Stress Score)
+        # Intensity Factor here is based on HR relative to Max HR
+        if_score = round(avg_hr / active_hr, 2)
+        # Calculation: (IF^2) * Hours * 100
+        tss_score = round(((duration_sec / 3600) * (if_score ** 2) * 100), 1)
+    else:
+        if_score, tss_score = 0, 0
 
     # 6. Power Curve Generation
-    curve_durations = {str(d): d for d in [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600]}
-    detailed_curve = get_interval_bests(streams, intervals=curve_durations)
-    curve_json = {k.replace('peak_power_', ''): v for k, v in detailed_curve.items() if 'peak_power_' in k and v is not None}
+    curve_json = {}
+    if has_power:
+        curve_durations = {str(d): d for d in [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600]}
+        detailed_curve = get_interval_bests(streams, intervals=curve_durations)
+        curve_json = {k.replace('peak_power_', ''): v for k, v in detailed_curve.items() if 'peak_power_' in k and v is not None}
 
     # 7. Database Persistence
     sql_save = """
