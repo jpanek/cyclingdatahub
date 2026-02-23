@@ -255,6 +255,7 @@ SELECT
     aa.intensity_score as "IF",
     aa.training_stress_score as "TSS",
     aa.baseline_ftp as "Baseline_FTP",
+    aa.baseline_max_hr as "Baseline_Max_HR",
     aa.aerobic_decoupling as "Decoupling_Pct",
     aa.efficiency_factor as "Efficiency_EF",
     aa.power_curve as "Power_Curve"
