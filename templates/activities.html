@@ -1,3 +1,5 @@
+<!-- templates/activities.html -->
+
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid mt-4">
@@ -99,7 +101,17 @@
                             </span>
                         </td>
                         <td>{{ "{:,.1f}".format(act.distance_km | default(0)) }} km</td>
-                        <td>{{ "{:.1f}".format(act.duration_hours | default(0)) }} h</td>
+                        <td>
+                            {% set total_seconds = (act.duration_hours | default(0) * 3600) | int %}
+                            {% set hrs = total_seconds // 3600 %}
+                            {% set mins = (total_seconds % 3600) // 60 %}
+                            
+                            {% if hrs > 0 %}
+                                {{ hrs }}h {{ "{:02d}".format(mins) }}m
+                            {% else %}
+                                {{ mins }}m
+                            {% endif %}
+                        </td>
                         <td>
                             {{ (act.average_watts | default(0)) | int }} W
                         </td>

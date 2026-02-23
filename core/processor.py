@@ -80,6 +80,7 @@ def get_athlete_context(strava_id):
     """Fetches user settings and activity metadata."""
     sql = """
         SELECT a.athlete_id, a.type, a.start_date_local, a.strava_id,
+               a.moving_time, a.elapsed_time,
                u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
                u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
                u.manual_ftp_updated_at
@@ -246,11 +247,13 @@ def process_activity_metrics(strava_id, force=False):
     # 5. Training Load & Scoring
     avg_pwr = np.mean(streams['watts_series']) if has_power else 0
     avg_hr = np.mean(streams['heartrate_series']) if streams['heartrate_series'] else 0
-    duration_sec = streams['time_series'][-1] if streams['time_series'] else 0
+    
+    duration_sec = context.get('moving_time') or (streams['time_series'][-1] if streams['time_series'] else 0)
     
     vi_score = round(weighted_pwr / avg_pwr, 2) if (has_power and avg_pwr > 0) else 1.0
     ef_score = round(weighted_pwr / avg_hr, 2) if (has_power and has_hr and avg_hr > 0) else 0
     
+
     # Smart TSS / IF Calculation
     if has_power and active_ftp > 0:
         # Standard Power-based scoring
@@ -264,6 +267,18 @@ def process_activity_metrics(strava_id, force=False):
         tss_score = round(((duration_sec / 3600) * (if_score ** 2) * 100), 1)
     else:
         if_score, tss_score = 0, 0
+
+    print("--- TRUTH BLOCK ---")
+    print(f"Has Power: {has_power}")
+    print(f"Hours: {duration_sec / 3600}")
+    print(f"IF: {if_score}")
+    print(f"IF Squared: {if_score ** 2}")
+    
+    calculated_manually = (duration_sec / 3600) * (if_score ** 2) * 100
+    print(f"Manual Calc: {calculated_manually}")
+    print(f"Variable tss_score: {tss_score}")
+    print("-------------------")
+
 
     # 6. Power Curve Generation
     curve_json = {}
