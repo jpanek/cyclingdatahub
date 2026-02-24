@@ -13,14 +13,14 @@ from core.processor import process_activity_metrics
 from core.queries import SQL_CRAWLER_BACKLOG
 from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS
 
-def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
+def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
     """
     Cycles through ALL users in the DB and backfills a few historical 
     cycling activities for each, respecting a 1-year hard stop.
     """
 
     # 1. Hard Stop: Only process rides from the last 365 days
-    one_year_ago = (datetime.now() - timedelta(days=history_days)).strftime('%Y-%m-%d %H:%M:%S')
+    max_look_back_date = (datetime.now() - timedelta(days=history_days)).strftime('%Y-%m-%d %H:%M:%S')
 
     # 2. Get all athletes currently in our system
     athletes = get_db_all_athletes()
@@ -35,7 +35,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
         a_id = athlete['athlete_id']
         name = athlete['firstname']
 
-        to_process = run_query(SQL_CRAWLER_BACKLOG, (a_id, one_year_ago, batch_size_per_user))
+        to_process = run_query(SQL_CRAWLER_BACKLOG, (a_id, max_look_back_date, batch_size_per_user))
 
         if not to_process:
             print(f"\t✅ {name} ({a_id}): Fully caught up.")
@@ -55,12 +55,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
                 
                 sync_single_activity(a_id, s_id)
 
-                time.sleep(sleep_time) # Pause between activities
-            
-            if a_date:
-                from core.database import invalidate_analytics_from_date
-                invalidate_analytics_from_date(a_id, a_date)
-                print(f"\t🚩Invalidated analytics for {name} ({a_id}) from {a_date} forward.\n")
+                time.sleep(sleep_time)
 
         except Exception as user_err:
             print(f"⚠️ Error processing {name}: {user_err}")
