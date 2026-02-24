@@ -52,8 +52,8 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
                             first_date_in_batch = ride_date
                 
                 if processed > 0 and first_date_in_batch:
-                    print(f"\t✨ Batch complete. Syncing fitness from {first_date_in_batch.date()}...")
                     sync_daily_fitness(a_id, first_date_in_batch)
+                    print(f"\t✨ Completed syncing fitness from {first_date_in_batch.date()} ...")
             except Exception as user_err:
                 print(f"  ⚠️ Error processing {name}: {user_err}")
         else:
