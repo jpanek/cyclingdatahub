@@ -11,7 +11,7 @@ from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_ac
 from core.processor import process_activity_metrics
 import sys
 
-def sync_single_activity(athlete_id, activity_id):
+def sync_single_activity(athlete_id, activity_id, run_analytics=True):
     conn = get_db_connection()
     try:
         print(f"\n\t--- Targeted Sync: Activity {activity_id} for Athlete {athlete_id} ---")
@@ -40,20 +40,21 @@ def sync_single_activity(athlete_id, activity_id):
             #6. Invalidate all activity analytics afterwards
             from core.database import invalidate_analytics_from_date
 
-            # =======================================================================================
-            # Add extra day for invalidation & analytical recalc
-            res = run_query("SELECT start_date_local FROM activities WHERE strava_id = %s", (activity_id,))
-            db_ride_date = res[0]['start_date_local'] if res else None
+            if run_analytics:
+                # =======================================================================================
+                # Add extra day for invalidation & analytical recalc
+                res = run_query("SELECT start_date_local FROM activities WHERE strava_id = %s", (activity_id,))
+                db_ride_date = res[0]['start_date_local'] if res else None
 
-            if db_ride_date:
-                safety_date = (db_ride_date - timedelta(days=1)).strftime('%Y-%m-%d')
-                invalidate_analytics_from_date(athlete_id,safety_date)
-                print(f"\t🚩Invalidated analytics for {athlete_id} from {safety_date} forward.")
-            # =======================================================================================
+                if db_ride_date:
+                    safety_date = (db_ride_date - timedelta(days=1)).strftime('%Y-%m-%d')
+                    invalidate_analytics_from_date(athlete_id,safety_date)
+                    print(f"\t🚩Invalidated analytics for {athlete_id} from {safety_date} forward.")
+                # =======================================================================================
 
-            #7. actually run the analytics crawl:
-            from core.crawl_analytics import sync_local_analytics
-            sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,target_athlete_id=athlete_id)
+                #7. actually run the analytics crawl:
+                from core.crawl_analytics import sync_local_analytics
+                sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,target_athlete_id=athlete_id)
 
         else:
             print(f"\t⚠️ Could not find activity {activity_id} on Strava.")

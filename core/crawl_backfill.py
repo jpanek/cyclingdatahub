@@ -11,7 +11,7 @@ from core.strava_api import get_valid_access_token, sync_activity_streams
 from run_sync import sync_single_activity
 from core.processor import process_activity_metrics
 from core.queries import SQL_CRAWLER_BACKLOG
-from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS
+from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS, ANALYTICS_RECALC_SIZE
 
 def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
     """
@@ -47,15 +47,24 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
 
         # 4. Process the batch for this user
         try:
-            a_date = None
+            batch_dates = []
 
             for row in to_process:
                 s_id = row['strava_id']
-                a_date = row['start_date_local'].strftime('%Y-%m-%d')
+                batch_dates.append(row['start_date_local'].strftime('%Y-%m-%d'))
                 
-                sync_single_activity(a_id, s_id)
-
+                sync_single_activity(a_id, s_id, run_analytics=False)
                 time.sleep(sleep_time)
+            
+            if batch_dates:
+                oldest_date = min(batch_dates)
+                safety_date = (oldest_date - timedelta(days=1)).strftime('%Y-%m-%d')
+                from core.database import invalidate_analytics_from_date
+                invalidate_analytics_from_date(a_id, safety_date)
+                print(f"\t🚩Invalidated analytics for {name} ({a_id}) from {safety_date} forward.\n")
+
+                from core.crawl_analytics import sync_local_analytics
+                sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,target_athlete_id=a_id)
 
         except Exception as user_err:
             print(f"⚠️ Error processing {name}: {user_err}")
