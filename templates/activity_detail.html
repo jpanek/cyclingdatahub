@@ -220,16 +220,16 @@
                         </thead>
                         <tbody>
                             <tr class="table-info-subtle">
-                                <td class="ps-3 fw-bold">Max (Peak)</td>
-                                <td class="fw-bold text-dark">{{ activity.max_watts | round | int if activity.max_watts else '-' }} W</td>
-                                <td class="text-danger fw-bold">{{ activity.max_heartrate | round | int if activity.max_heartrate else '-' }} bpm</td>
+                                <td class="ps-3 ">1 Second</td>
+                                <td class="fw-semibold text-dark">{{ activity.max_watts | round | int if activity.max_watts else '-' }} W</td>
+                                <td class="text-danger fw-semibold">{{ activity.max_heartrate | round | int if activity.max_heartrate else '-' }} bpm</td>
                             </tr>
                         
                             {% for label in ['5s', '1m', '5m', '20m'] %}
                             <tr>
                                 <td class="ps-3 fw-semibold text-muted">{{ '5 Seconds' if label == '5s' else label.replace('m', ' Minute').replace('20 Minute', '20 Minutes') }}</td>
-                                <td class="fw-bold">{{ activity.interval_bests[label]['power'] or '-' }} W</td>
-                                <td class="text-danger">{{ activity.interval_bests[label]['hr'] or '-' }} bpm</td>
+                                <td class="fw-semibold">{{ activity.interval_bests[label]['power'] or '-' }} W</td>
+                                <td class="fw-semibold text-danger">{{ activity.interval_bests[label]['hr'] or '-' }} bpm</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -245,7 +245,6 @@
     {# Calculate max values for relative scaling #}
     {% set max_lap_power = laps | map(attribute='average_watts') | map('float') | max | default(1) %}
     {% set max_lap_hr = laps | map(attribute='average_heartrate') | map('float') | max | default(1) %}
-
     <div class="row mt-4 mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">

@@ -47,17 +47,15 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
 
         # 4. Process the batch for this user
         try:
-            batch_dates = []
+            oldest_date = to_process[-1]['start_date_local']
 
             for row in to_process:
                 s_id = row['strava_id']
-                batch_dates.append(row['start_date_local'].strftime('%Y-%m-%d'))
                 
                 sync_single_activity(a_id, s_id, run_analytics=False)
                 time.sleep(sleep_time)
             
-            if batch_dates:
-                oldest_date = min(batch_dates)
+            if oldest_date:
                 safety_date = (oldest_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 from core.database import invalidate_analytics_from_date
                 invalidate_analytics_from_date(a_id, safety_date)
