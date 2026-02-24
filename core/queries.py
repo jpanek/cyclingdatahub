@@ -214,7 +214,11 @@ SQL_CRAWLER_BACKLOG = """
     AND a.streams_missing = FALSE
     --AND a.type IN ('Ride', 'VirtualRide')
     AND a.start_date_local >= %s
-    AND s.strava_id IS NULL
+    AND (
+        s.strava_id IS NULL             -- Case 1: We don't have streams yet
+        OR 
+        a.resource_state = 2            -- Case 2: We have streams, but metadata is only 'Summary'
+    )
   ORDER BY a.start_date_local DESC
   LIMIT %s
 """

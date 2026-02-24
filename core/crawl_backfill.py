@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from psycopg2.extras import RealDictCursor
 from core.database import get_db_connection, get_db_all_athletes, run_query
 from core.strava_api import get_valid_access_token, sync_activity_streams
+from run_sync import sync_single_activity
 from core.processor import process_activity_metrics
 from core.queries import SQL_CRAWLER_BACKLOG
 from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS
@@ -46,19 +47,20 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=2):
 
         # 4. Process the batch for this user
         try:
-            conn = get_db_connection()
             a_date = None
 
             for row in to_process:
                 s_id = row['strava_id']
                 a_date = row['start_date_local'].strftime('%Y-%m-%d')
-                sync_activity_streams(conn, a_id, s_id)
+                
+                sync_single_activity(a_id, s_id)
+
                 time.sleep(sleep_time) # Pause between activities
             
             if a_date:
                 from core.database import invalidate_analytics_from_date
                 invalidate_analytics_from_date(a_id, a_date)
-                print(f"\t🚩Invalidated analytics for {name} ({a_id}) from {a_date} forward.")
+                print(f"\t🚩Invalidated analytics for {name} ({a_id}) from {a_date} forward.\n")
 
         except Exception as user_err:
             print(f"⚠️ Error processing {name}: {user_err}")

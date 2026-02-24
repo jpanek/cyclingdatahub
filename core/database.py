@@ -19,6 +19,7 @@ MAP_SUMMARY_TOLERANCE = getattr(config, 'MAP_SUMMARY_TOLERANCE', 0.001)
 
 import numpy as np
 from psycopg2.extensions import register_adapter, AsIs
+from psycopg2.extras import execute_values
 
 def adapt_numpy_float64(numpy_float64):
     return AsIs(numpy_float64)
@@ -173,7 +174,8 @@ def save_db_activities(conn, athlete_id, activities):
             average_speed, max_speed, average_watts, max_watts,
             weighted_average_watts, kilojoules, average_heartrate,
             max_heartrate, average_cadence, suffer_score,
-            achievement_count, kudos_count, map_polyline, device_name, raw_json,
+            achievement_count, kudos_count, map_polyline, device_name, 
+            device_watts, raw_json, resource_state,
             summary_polyline, min_lat, max_lat, min_lng, max_lng
         ) VALUES (
             %(id)s, %(athlete_id)s, %(name)s, %(type)s, %(start_date)s,
@@ -181,15 +183,35 @@ def save_db_activities(conn, athlete_id, activities):
             %(avg_s)s, %(max_s)s, %(avg_w)s, %(max_w)s,
             %(weighted_w)s, %(kj)s, %(avg_hr)s,
             %(max_hr)s, %(avg_cad)s, %(suffer)s,
-            %(achieve)s, %(kudos)s, %(poly)s, %(device)s, %(raw)s,
+            %(achieve)s, %(kudos)s, %(poly)s, %(device)s, 
+            %(device_watts)s, %(raw)s, %(res_state)s,
             %(sum_poly)s, %(mi_lat)s, %(ma_lat)s, %(mi_lng)s, %(ma_lng)s
         ) 
         ON CONFLICT (strava_id) DO UPDATE SET
             name = EXCLUDED.name, 
+            type = EXCLUDED.type,
+            start_date_local = EXCLUDED.start_date_local, -- In case you fixed the Jakarta bug
             distance = EXCLUDED.distance,
             moving_time = EXCLUDED.moving_time, 
+            elapsed_time = EXCLUDED.elapsed_time,
+            total_elevation_gain = EXCLUDED.total_elevation_gain,
+            average_speed = EXCLUDED.average_speed,
+            max_speed = EXCLUDED.max_speed,
             average_watts = EXCLUDED.average_watts,
+            max_watts = EXCLUDED.max_watts,
             weighted_average_watts = EXCLUDED.weighted_average_watts,
+            kilojoules = EXCLUDED.kilojoules,
+            average_heartrate = EXCLUDED.average_heartrate,
+            max_heartrate = EXCLUDED.max_heartrate,
+            average_cadence = EXCLUDED.average_cadence,
+            suffer_score = EXCLUDED.suffer_score,
+            achievement_count = EXCLUDED.achievement_count,
+            kudos_count = EXCLUDED.kudos_count,
+            map_polyline = EXCLUDED.map_polyline,
+            device_name = EXCLUDED.device_name, 
+            device_watts = EXCLUDED.device_watts,
+            raw_json = EXCLUDED.raw_json,
+            resource_state = EXCLUDED.resource_state,
             summary_polyline = EXCLUDED.summary_polyline,
             min_lat = EXCLUDED.min_lat, 
             max_lat = EXCLUDED.max_lat,
@@ -233,6 +255,8 @@ def save_db_activities(conn, athlete_id, activities):
                 final_start_date = prague_dt.strftime('%Y-%m-%dT%H:%M:%S')
         # ===========================================================================
 
+        dev_w = a.get('device_watts', False)
+
         data.append({
             'id': a['id'], 'athlete_id': athlete_id, 'name': a.get('name'),
             'type': a.get('type'), 
@@ -247,7 +271,10 @@ def save_db_activities(conn, athlete_id, activities):
             'avg_cad': a.get('average_cadence'), 'suffer': a.get('suffer_score'),
             'achieve': a.get('achievement_count'), 'kudos': a.get('kudos_count'),
             'poly': raw_poly, 
-            'device': a.get('device_name'), 'raw': Json(a),
+            'device': a.get('device_name'), 
+            'res_state': a.get('resource_state'),
+            'raw': Json(a),
+            'device_watts': dev_w,
             # The extra "Pirate" payload
             'sum_poly': sum_p, 
             'mi_lat': mi_lat, 'ma_lat': ma_lat, 
@@ -256,7 +283,63 @@ def save_db_activities(conn, athlete_id, activities):
 
     with conn.cursor() as cur:
         execute_batch(cur, insert_sql, data)
+
+        for a in activities:
+            laps = a.get('laps')
+            if laps:
+                save_activity_laps(cur, strava_id = a['id'], laps_json = laps)
+
     conn.commit()
+
+def save_activity_laps(cur, strava_id, laps_json):
+    """
+    Saves or updates lap data. Note: athlete_id removed as 
+    strava_id FK provides the link.
+    """
+    if not laps_json:
+        return
+
+    insert_sql = """
+        INSERT INTO activity_laps (
+            lap_id, strava_id, lap_index, start_index, end_index,
+            name, distance, moving_time, elapsed_time,
+            total_elevation_gain, average_speed, max_speed,
+            average_watts, max_watts, average_heartrate,
+            max_heartrate, average_cadence, device_watts,
+            start_date_local
+        ) VALUES %s
+        ON CONFLICT (lap_id) DO UPDATE SET
+            average_watts = EXCLUDED.average_watts,
+            average_heartrate = EXCLUDED.average_heartrate,
+            moving_time = EXCLUDED.moving_time,
+            updated_at = NOW(); -- Manual update if trigger isn't used
+    """
+
+    lap_data = []
+    for l in laps_json:
+        lap_data.append((
+            l['id'],
+            strava_id,
+            l.get('lap_index'),
+            l.get('start_index'),
+            l.get('end_index'),
+            l.get('name'),
+            l.get('distance'),
+            l.get('moving_time'),
+            l.get('elapsed_time'),
+            l.get('total_elevation_gain'),
+            l.get('average_speed'),
+            l.get('max_speed'),
+            l.get('average_watts'),
+            l.get('max_watts'),
+            l.get('average_heartrate'),
+            l.get('max_heartrate'),
+            l.get('average_cadence'),
+            l.get('device_watts', False),
+            l.get('start_date_local')
+        ))
+
+    execute_values(cur, insert_sql, lap_data)
 
 def save_db_activity_stream(conn, activity_id, streams_dict):
     """
