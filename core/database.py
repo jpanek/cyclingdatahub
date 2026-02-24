@@ -304,7 +304,7 @@ def save_activity_laps(cur, strava_id, laps_json):
             lap_id, strava_id, lap_index, start_index, end_index,
             name, distance, moving_time, elapsed_time,
             total_elevation_gain, average_speed, max_speed,
-            average_watts, max_watts, average_heartrate,
+            average_watts, average_heartrate,
             max_heartrate, average_cadence, device_watts,
             start_date_local
         ) VALUES %s
@@ -331,7 +331,6 @@ def save_activity_laps(cur, strava_id, laps_json):
             l.get('average_speed'),
             l.get('max_speed'),
             l.get('average_watts'),
-            l.get('max_watts'),
             l.get('average_heartrate'),
             l.get('max_heartrate'),
             l.get('average_cadence'),

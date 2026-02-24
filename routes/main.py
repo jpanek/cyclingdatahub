@@ -64,7 +64,20 @@ def dashboard():
 def activity_detail(strava_id):
     athlete_id = session.get('athlete_id')
     results = run_query(SQL_ACTIVITY_DETAILS, (strava_id,))
+
+    if not results:
+        return "Activity details not found.", 404
     activity = results[0] if results else None
+
+    #0. Get the laps:
+    laps = []
+    if activity['resource_state'] == 3:
+        laps_sql = """
+            SELECT * FROM activity_laps 
+            WHERE strava_id = %s 
+            ORDER BY lap_index ASC
+        """
+        laps = run_query(laps_sql, (strava_id,))
     
     # 1. Fetch the current ride's date first
     current_ride = run_query("SELECT start_date_local FROM activities WHERE strava_id = %s", (strava_id,))
@@ -87,9 +100,6 @@ def activity_detail(strava_id):
         recent_activities = run_query(recent_sql, (athlete_id, curr_date, athlete_id, curr_date))
     else:
         recent_activities = []
-
-    if not activity:
-        return "Activity details or streams not found.", 404
     
     export_format = request.args.get('export')
     if export_format == 'json':
@@ -135,7 +145,8 @@ def activity_detail(strava_id):
         best_power=best_curve,
         recent_activities=recent_activities,
         fitness=fitness_data,
-        zone_ranges=zone_ranges
+        zone_ranges=zone_ranges,
+        laps=laps
     )
 
 @main_bp.route('/performance')

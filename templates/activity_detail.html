@@ -161,7 +161,7 @@
     </div>
 
 
-    <!-- Calulated power numbers -->
+    <!-- Calulated power numbers & Best efforts -->
     <div class="row mt-4">
 
         <div class="col-md-4">
@@ -240,6 +240,88 @@
 
     </div>
 
+    <!-- Laps summary -->
+    {% if activity.resource_state == 3 and laps %}
+    {# Calculate max values for relative scaling #}
+    {% set max_lap_power = laps | map(attribute='average_watts') | map('float') | max | default(1) %}
+    {% set max_lap_hr = laps | map(attribute='average_heartrate') | map('float') | max | default(1) %}
+
+    <div class="row mt-4 mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 py-3" 
+                    style="cursor: pointer; transition: background 0.2s;"
+                    onmouseover="this.style.backgroundColor='#f8f9fa'"
+                    onmouseout="this.style.backgroundColor='#fff'"
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#lapsCollapse" 
+                    aria-expanded="false">
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold text-dark">Laps</span>
+                            <span class="badge bg-light text-muted ms-2 border">{{ laps|length }}</span>
+                        </div>
+                        <div class="text-secondary small fw-semibold">
+                            View Details <i class="bi bi-chevron-expand ms-1"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="collapse" id="lapsCollapse">
+                    <div class="card-body p-0 border-top">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+                                <thead class="table-light">
+                                    <tr class="text-uppercase small text-muted">
+                                        <th class="ps-3 border-0">No</th>
+                                        <th class="border-0">Time</th>
+                                        <th class="border-0" style="width: 180px;">Power</th>
+                                        <th class="border-0" style="width: 180px;">HR</th>
+                                        <th class="border-0">Distance</th>
+                                        <th class="border-0">Cadence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lap in laps %}
+                                    <tr>
+                                        <td class="ps-3 text-muted">{{ lap.lap_index }}</td>
+                                        <td class="fw-medium">{{ (lap.moving_time // 60) }}m {{ (lap.moving_time % 60) }}s</td>
+                                        
+                                        <td class="fw-medium">
+                                            <div class="d-flex align-items-center">
+                                                <div style="min-width: 50px;">{{ lap.average_watts | round | int if lap.average_watts else 0 }} W</div>
+                                                <div class="flex-grow-1 ms-2 bg-light rounded-pill" style="height: 6px; max-width: 60px; overflow: hidden;">
+                                                    {% set pwr_pct = (lap.average_watts|float / max_lap_power|float * 100) if max_lap_power > 0 else 0 %}
+                                                    <div class="bg-primary opacity-75" style="width: {{ pwr_pct }}%; height: 100%;"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="fw-medium">
+                                            <div class="d-flex align-items-center">
+                                                <div style="min-width: 60px;">{{ lap.average_heartrate | round | int if lap.average_heartrate else '-' }} bpm</div>
+                                                <div class="flex-grow-1 ms-2 bg-light rounded-pill" style="height: 6px; max-width: 60px; overflow: hidden;">
+                                                    {% set hr_pct = (lap.average_heartrate|float / max_lap_hr|float * 100) if max_lap_hr > 0 else 0 %}
+                                                    <div class="bg-danger opacity-75" style="width: {{ hr_pct }}%; height: 100%;"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="fw-medium">{{ "%.2f"|format(lap.distance / 1000) }} km</td>
+                                        <td class="ps-3 text-muted">{{ lap.average_cadence | round | int if lap.average_cadence else 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Time in zones -->
     <div class="row mt-4">
         <div class="col-md-6 mb-4">
@@ -256,7 +338,6 @@
                         {% for zone_name, seconds in activity.power_tiz.items() %}
                             {% set percent = (seconds / total_p * 100) | round | int %}
                             
-                            {# Use namespace to fix scoping #}
                             {% set ns = namespace(range_text="") %}
                             {% for r in zone_ranges.power %}
                                 {% if r.name == zone_name %}
@@ -270,8 +351,9 @@
                                     <span class="text-muted">{{ (seconds // 60) }}m {{ (seconds % 60) }}s ({{ percent }}%)</span>
                                 </div>
                                 <div class="progress" style="height: 10px;">
-                                    <div class="progress-bar {% if zone_name in ['Z1','Z2'] %}bg-success{% elif zone_name == 'Z3' %}bg-info{% elif zone_name == 'Z4' %}bg-warning{% else %}bg-danger{% endif %}" 
-                                         role="progressbar" style="width: {{ percent }}%"></div>
+                                    {# Using shades of blue (primary) with increasing opacity per zone #}
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: {{ percent }}%; opacity: {{ 0.2 + (loop.index0 * 0.15) }};"></div>
                                 </div>
                             </div>
                         {% endfor %}
@@ -294,7 +376,6 @@
                         {% for zone_name, seconds in activity.hr_tiz.items() %}
                             {% set percent = (seconds / total_h * 100) | round | int %}
 
-                            {# Use namespace to fix scoping #}
                             {% set ns_hr = namespace(range_text="") %}
                             {% for r in zone_ranges.hr %}
                                 {% if r.name == zone_name %}
@@ -483,7 +564,7 @@
     });
 </script>
 
-
+<!-- Power curve -->
 <script>
     // Power curve chart:
     const curveCtx = document.getElementById('powerCurveChart').getContext('2d');
@@ -574,6 +655,7 @@
     });
 </script>
 
+<!-- Polymap -->
 <script>
     // Polyline map of the activity:
     //const encodedPath = "{{ activity.map_polyline }}";
@@ -605,7 +687,7 @@
     }
 </script>
 
-
+<!-- Coppy summary function -->
 <script>
     function copySummary() {
         const isRun = "{{ activity.type }}".includes("Run");
@@ -627,10 +709,30 @@
                 .join(' | ');
         };
     
-        // Safely parse the zone data from Jinja
+        // Safely parse the zone and lap data from Jinja
         const pwrTiz = {{ activity.power_tiz | tojson | safe if activity.power_tiz else 'null' }};
         const hrTiz = {{ activity.hr_tiz | tojson | safe if activity.hr_tiz else 'null' }};
+        const lapsData = {{ laps | tojson | safe if laps else '[]' }};
     
+        // Generate Laps Markdown Table
+        let lapsSummary = "";
+        if (lapsData.length > 0) {
+            lapsSummary = [
+                `**LAPS**`,
+                `| # | Time | Power | HR |`,
+                `|---|---|---|---|`,
+                ...lapsData.map(l => {
+                    const min = Math.floor(l.moving_time / 60);
+                    const sec = l.moving_time % 60;
+                    const timeStr = `${min}m ${sec < 10 ? '0' + sec : sec}s`;
+                    const pwr = Math.round(l.average_watts || 0);
+                    const hr = Math.round(l.average_heartrate || 0);
+                    return `| ${l.lap_index} | ${timeStr} | ${pwr}W | ${hr}bpm |`;
+                }),
+                ``
+            ].join('\n');
+        }
+
         const summary = [
             `### Activity: {{ activity.name }}`,
             `**Date:** \`{{ activity.start_date_local.strftime('%Y-%m-%d %H:%M') }}\` | **Type:** \`{{ activity.type }}\``,
@@ -640,6 +742,7 @@
             `- **Dist/Time:** \`{{ '%.1f'|format(activity.distance_km or 0) }} km\` | \`{{ (activity.moving_time // 3600) }}h {{ (activity.moving_time % 3600 // 60) }}m {{ activity.moving_time % 60 }}s\``,
             `- **Speed/Elevation/Work:** \`${paceStr}\` | \`{{ activity.total_elevation_gain | default(0, true) | round | int }}m\` | \`{{ activity.kilojoules | default(0, true) | round | int }}kJ\``,
             ``,
+            lapsSummary, // Inserted the new Laps Block here
             `**POWER & INTENSITY**`,
             `- **Power:** Avg \`{{ (activity.average_watts or 0) | round | int }}W\` | NP \`{{ activity.weighted_avg_power or 0 }}W\` | Max \`{{ (activity.max_watts or 0) | round | int }}W\` | FTP Baseline \`{{ activity.baseline_ftp or 0 }}W\``,
             `- **Metrics:** TSS: \`{{ activity.training_stress_score or 0 }}\` | IF: \`{{ activity.intensity_score or 0 }}\` | VI: \`{{ activity.variability_index or 0 }}\``,
@@ -666,6 +769,7 @@
     }
 </script>
 
+<!-- Event listeners -->
 <script>
     // Wait for the DOM and Bootstrap to be fully ready
     document.addEventListener('DOMContentLoaded', function () {

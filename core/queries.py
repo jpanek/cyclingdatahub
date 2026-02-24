@@ -141,7 +141,8 @@ SELECT
     an.power_curve,
     a.map_polyline,
     s.altitude_series,
-    an.power_tiz, an.hr_tiz
+    an.power_tiz, an.hr_tiz,
+    a.resource_state
 FROM activities a
 JOIN activity_streams s ON a.strava_id = s.strava_id
 LEFT JOIN activity_analytics an ON a.strava_id = an.strava_id
