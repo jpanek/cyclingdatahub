@@ -43,7 +43,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
         
         latest_date = to_process[-1]['start_date_local']
         date_str = latest_date.strftime('%Y-%m-%d') if hasattr(latest_date, 'strftime') else str(latest_date)
-        print(f"\n\t🔄 {name} ({a_id}): Syncing {len(to_process)} activities (starting from {date_str})...")
+        print(f"\n🔄 {name} ({a_id}): Syncing {len(to_process)} activities (starting from {date_str})...")
 
         # 4. Process the batch for this user
         try:
