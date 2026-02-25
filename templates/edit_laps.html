@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Laps: {{ activity.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+    <div class="mb-4">
+        <a href="/activity/{{ strava_id }}" class="btn btn-sm btn-outline-secondary shadow-sm">
+            <i class="bi bi-arrow-left"></i> Back to Activity
+        </a>
+    </div>
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-end mb-4 gap-3">
+        <div class="overflow-hidden">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h4 class="mb-0 fw-bold text-truncate">Laps Editor: {{ activity.name }}</h4>
+                <span class="badge rounded-pill bg-light text-dark border">{{ activity.type }}</span>
+            </div>
+            <div class="text-muted fs-6">
+                {{ activity.start_date_local.strftime('%A, %B %d, %Y') }}
+            </div>
+        </div>
+    
+        <div class="d-flex gap-2">
+            <button id="resetLapsBtn" class="btn btn-outline-secondary btn-sm shadow-sm">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset to Original
+            </button>
+            <button id="mergeBtn" class="btn btn-sm btn-outline-danger shadow-sm fw-bold" disabled>
+                <i class="bi bi-intersect me-1"></i> Merge Selected
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100 border-0 bg-light">
+                <strong class="small text-muted">Total Distance</strong>
+                <span class="fw-bold">{{ "%.1f"|format(activity.distance / 1000) }} km</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card p-2 shadow-sm h-100 border-0 bg-light">
+                <strong class="small text-muted">Avg Power</strong>
+                <span class="fw-bold">{{ activity.average_watts | int }} W</span>
+            </div>
+        </div>
+    </div>
+
+    {# Progress Bar Math #}
+    {% set max_lap_power = laps | map(attribute='average_watts') | map('float') | max | default(1) %}
+    {% set max_lap_hr = laps | map(attribute='average_heartrate') | map('float') | max | default(1) %}
+
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="lapsTable" style="font-size: 0.9rem;">
+                <thead class="table-light">
+                    <tr class="text-uppercase small text-muted">
+                        <th class="ps-3 border-0" style="width: 40px;"></th>
+                        <th class="border-0">Status</th>
+                        <th class="border-0">No</th>
+                        <th class="border-0">Time</th>
+                        <th class="border-0" style="width: 180px;">Power</th>
+                        <th class="border-0" style="width: 180px;">HR</th>
+                        <th class="border-0">Distance</th>
+                        <th class="border-0">Cadence</th>
+                        <th class="border-0 text-end pe-3">Indices</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lap in laps %}
+                    <tr class="{% if lap.is_hidden %}opacity-50 grayscale-row{% elif lap.is_manual %}bg-manual-row{% endif %}">
+                        <td class="ps-3">
+                            <input type="checkbox" class="form-check-input lap-checkbox shadow-none" 
+                                   data-index="{{ lap.lap_index }}" 
+                                   {% if lap.is_hidden %}disabled{% endif %}>
+                        </td>
+                        <td>
+                            {% if lap.is_manual %}
+                                <span class="badge bg-primary rounded-pill">Manual</span>
+                            {% elif lap.is_hidden %}
+                                <span class="badge bg-light text-muted border rounded-pill">Hidden</span>
+                            {% else %}
+                                <span class="badge bg-white text-dark border rounded-pill">Orig</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ lap.lap_index }}</td>
+                        <td class="fw-medium">{{ (lap.moving_time // 60) }}m {{ (lap.moving_time % 60) }}s</td>
+                        
+                        {# Power with Bar #}
+                        <td class="fw-medium">
+                            <div class="d-flex align-items-center">
+                                <div style="min-width: 50px;">{{ lap.average_watts | round | int }} W</div>
+                                <div class="flex-grow-1 ms-2 bg-light rounded-pill" style="height: 6px; max-width: 60px; overflow: hidden;">
+                                    {% set pwr_pct = (lap.average_watts|float / max_lap_power|float * 100) if max_lap_power > 0 else 0 %}
+                                    <div class="bg-primary opacity-75" style="width: {{ pwr_pct }}%; height: 100%;"></div>
+                                </div>
+                            </div>
+                        </td>
+
+                        {# HR with Bar #}
+                        <td class="fw-medium">
+                            <div class="d-flex align-items-center">
+                                <div style="min-width: 60px;">{{ lap.average_heartrate | round | int if lap.average_heartrate else '-' }} bpm</div>
+                                <div class="flex-grow-1 ms-2 bg-light rounded-pill" style="height: 6px; max-width: 60px; overflow: hidden;">
+                                    {% set hr_pct = (lap.average_heartrate|float / max_lap_hr|float * 100) if max_lap_hr > 0 else 0 %}
+                                    <div class="bg-danger opacity-75" style="width: {{ hr_pct }}%; height: 100%;"></div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="fw-medium">{{ "%.2f"|format(lap.distance / 1000) }} km</td>
+                        <td class="text-muted">{{ lap.average_cadence | round | int }}</td>
+                        <td class="text-end pe-3 font-monospace text-muted small" style="font-size: 0.7rem;">
+                            {{ lap.start_index }} - {{ lap.end_index }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .grayscale-row { filter: grayscale(1); background-color: #fcfcfc; }
+    .bg-manual-row { background-color: rgba(13, 110, 253, 0.04); }
+</style>
+
+<script>
+// Merge button logic: Toggle color and state
+document.querySelectorAll('.lap-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const checked = document.querySelectorAll('.lap-checkbox:checked');
+        const btn = document.getElementById('mergeBtn');
+        if (checked.length >= 2) {
+            btn.disabled = false;
+            btn.classList.replace('btn-outline-danger', 'btn-danger');
+            btn.classList.add('text-white');
+        } else {
+            btn.disabled = true;
+            btn.classList.replace('btn-danger', 'btn-outline-danger');
+            btn.classList.remove('text-white');
+        }
+    });
+});
+
+// Reset logic
+document.getElementById('resetLapsBtn').addEventListener('click', async () => {
+    if (!confirm("Revert to original Strava laps?")) return;
+    const res = await fetch('/api/laps/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strava_id: {{ activity.strava_id }} })
+    });
+    if (res.ok) window.location.reload();
+});
+
+// Merge logic
+document.getElementById('mergeBtn').addEventListener('click', async () => {
+    const indices = Array.from(document.querySelectorAll('.lap-checkbox:checked'))
+                         .map(cb => parseInt(cb.dataset.index));
+    
+    if (!confirm(`Merge ${indices.length} laps?`)) return;
+
+    const res = await fetch('/api/laps/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strava_id: {{ activity.strava_id }}, indices: indices })
+    });
+    if (res.ok) window.location.reload();
+});
+</script>
+{% endblock %}

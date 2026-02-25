@@ -75,7 +75,8 @@ def activity_detail(strava_id):
         laps_sql = """
             SELECT * FROM activity_laps 
             WHERE strava_id = %s 
-            ORDER BY lap_index ASC
+              AND is_hidden = FALSE
+            ORDER BY start_index ASC
         """
         laps = run_query(laps_sql, (strava_id,))
     
@@ -308,6 +309,28 @@ def fitness_dashboard():
         current_days=days
     )
 
+@main_bp.route('/laps-editor/<int:strava_id>')
+def laps_editor(strava_id):
+    # Fetch the specific activity data
+    activity_results = run_query("SELECT * FROM activities WHERE strava_id = %s", (strava_id,))
+    
+    if not activity_results:
+        return "Activity not found", 404
+        
+    activity = activity_results[0]
+
+    # Fetch laps (all of them, including hidden/manual)
+    laps = run_query("""
+        SELECT * FROM activity_laps 
+        WHERE strava_id = %s 
+        ORDER BY start_index ASC, is_manual ASC
+    """, (strava_id,))
+    
+    return render_template('edit_laps.html', 
+                           strava_id=strava_id, 
+                           activity=activity, 
+                           laps=laps)
+
 @main_bp.route('/privacy')
 def privacy():
     return render_template('privacy.html')
@@ -325,7 +348,6 @@ def dump():
     markdown_data = format_activities_to_markdown(rows)
     
     return render_template('dump.html', markdown_data=markdown_data, days=days)
-
 
 @main_bp.route('/dump-raw')
 @login_required

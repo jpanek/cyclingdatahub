@@ -7,6 +7,7 @@ from flask import (
     Blueprint, redirect, url_for, flash, request, 
     session, current_app, jsonify, Response
     )
+from core.laps import merge_activity_laps, reset_activity_laps
 from config import LOG_PATH, BASE_PATH
 from core.database import run_query
 from routes.auth import login_required
@@ -60,6 +61,18 @@ def inject_globals():
         total_activity_count=total_activity_count,
         total_streams_count=total_streams_count
     )
+
+@ops_bp.route('/api/laps/merge', methods=['POST'])
+def api_merge_laps():
+    data = request.json
+    success, msg = merge_activity_laps(data['strava_id'], data['indices'])
+    return jsonify({"status": "success" if success else "error", "message": msg})
+
+@ops_bp.route('/api/laps/reset', methods=['POST'])
+def api_reset_laps():
+    data = request.json
+    success, msg = reset_activity_laps(data['strava_id'])
+    return jsonify({"status": "success" if success else "error", "message": msg})
 
 @ops_bp.route('/sync-activities')
 @login_required
