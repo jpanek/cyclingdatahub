@@ -6,7 +6,7 @@
 <div class="container-fluid mt-4">
 
     <div class="mb-4">
-        <a href="/activity/{{ strava_id }}" class="btn btn-sm btn-outline-secondary shadow-sm">
+        <a href="/activity/{{ activity.strava_id }}" class="btn btn-sm btn-outline-secondary shadow-sm">
             <i class="bi bi-arrow-left"></i> Back to Activity
         </a>
     </div>
@@ -42,7 +42,7 @@
         <div class="col-6 col-md-2">
             <div class="card p-2 shadow-sm h-100 border-0 bg-light">
                 <strong class="small text-muted">Avg Power</strong>
-                <span class="fw-bold">{{ activity.average_watts | int }} W</span>
+                <span class="fw-bold">{{ activity.average_watts | int if activity.average_watts else 0 }} W</span>
             </div>
         </div>
     </div>
@@ -72,7 +72,7 @@
                     <tr class="{% if lap.is_hidden %}opacity-50 grayscale-row{% elif lap.is_manual %}bg-manual-row{% endif %}">
                         <td class="ps-3">
                             <input type="checkbox" class="form-check-input lap-checkbox shadow-none" 
-                                   data-index="{{ lap.lap_index }}" 
+                                   data-id="{{ lap.lap_id }}" 
                                    {% if lap.is_hidden %}disabled{% endif %}>
                         </td>
                         <td>
@@ -87,10 +87,9 @@
                         <td class="text-muted">{{ lap.lap_index }}</td>
                         <td class="fw-medium">{{ (lap.moving_time // 60) }}m {{ (lap.moving_time % 60) }}s</td>
                         
-                        {# Power with Bar #}
                         <td class="fw-medium">
                             <div class="d-flex align-items-center">
-                                <div style="min-width: 50px;">{{ lap.average_watts | round | int }} W</div>
+                                <div style="min-width: 50px;">{{ lap.average_watts | round | int if lap.average_watts else 0 }} W</div>
                                 <div class="flex-grow-1 ms-2 bg-light rounded-pill" style="height: 6px; max-width: 60px; overflow: hidden;">
                                     {% set pwr_pct = (lap.average_watts|float / max_lap_power|float * 100) if max_lap_power > 0 else 0 %}
                                     <div class="bg-primary opacity-75" style="width: {{ pwr_pct }}%; height: 100%;"></div>
@@ -98,7 +97,6 @@
                             </div>
                         </td>
 
-                        {# HR with Bar #}
                         <td class="fw-medium">
                             <div class="d-flex align-items-center">
                                 <div style="min-width: 60px;">{{ lap.average_heartrate | round | int if lap.average_heartrate else '-' }} bpm</div>
@@ -110,7 +108,7 @@
                         </td>
 
                         <td class="fw-medium">{{ "%.2f"|format(lap.distance / 1000) }} km</td>
-                        <td class="text-muted">{{ lap.average_cadence | round | int }}</td>
+                        <td class="text-muted">{{ lap.average_cadence | round | int if lap.average_cadence else 0 }}</td>
                         <td class="text-end pe-3 font-monospace text-muted small" style="font-size: 0.7rem;">
                             {{ lap.start_index }} - {{ lap.end_index }}
                         </td>
@@ -128,7 +126,6 @@
 </style>
 
 <script>
-// Merge button logic: Toggle color and state
 document.querySelectorAll('.lap-checkbox').forEach(cb => {
     cb.addEventListener('change', () => {
         const checked = document.querySelectorAll('.lap-checkbox:checked');
@@ -145,10 +142,9 @@ document.querySelectorAll('.lap-checkbox').forEach(cb => {
     });
 });
 
-// Reset logic
 document.getElementById('resetLapsBtn').addEventListener('click', async () => {
     if (!confirm("Revert to original Strava laps?")) return;
-    const res = await fetch('/api/laps/reset', {
+    const res = await fetch('/ops/laps/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ strava_id: {{ activity.strava_id }} })
@@ -156,17 +152,16 @@ document.getElementById('resetLapsBtn').addEventListener('click', async () => {
     if (res.ok) window.location.reload();
 });
 
-// Merge logic
 document.getElementById('mergeBtn').addEventListener('click', async () => {
-    const indices = Array.from(document.querySelectorAll('.lap-checkbox:checked'))
-                         .map(cb => parseInt(cb.dataset.index));
+    const ids = Array.from(document.querySelectorAll('.lap-checkbox:checked'))
+                     .map(cb => cb.dataset.id);
     
-    if (!confirm(`Merge ${indices.length} laps?`)) return;
+    if (!confirm(`Merge ${ids.length} laps?`)) return;
 
-    const res = await fetch('/api/laps/merge', {
+    const res = await fetch('/ops/laps/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strava_id: {{ activity.strava_id }}, indices: indices })
+        body: JSON.stringify({ strava_id: {{ activity.strava_id }}, ids: ids })
     });
     if (res.ok) window.location.reload();
 });

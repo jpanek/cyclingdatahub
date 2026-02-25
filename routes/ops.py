@@ -62,13 +62,13 @@ def inject_globals():
         total_streams_count=total_streams_count
     )
 
-@ops_bp.route('/api/laps/merge', methods=['POST'])
+@ops_bp.route('/laps/merge', methods=['POST'])
 def api_merge_laps():
     data = request.json
-    success, msg = merge_activity_laps(data['strava_id'], data['indices'])
+    success, msg = merge_activity_laps(data['strava_id'], data['ids'])
     return jsonify({"status": "success" if success else "error", "message": msg})
 
-@ops_bp.route('/api/laps/reset', methods=['POST'])
+@ops_bp.route('/laps/reset', methods=['POST'])
 def api_reset_laps():
     data = request.json
     success, msg = reset_activity_laps(data['strava_id'])

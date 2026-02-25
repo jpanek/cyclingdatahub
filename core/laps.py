@@ -2,19 +2,28 @@
 from core.database import run_query
 from datetime import datetime
 
-def merge_activity_laps(strava_id, lap_indices):
+def merge_activity_laps(strava_id, lap_ids):
     """
     Merges multiple laps into one by calculating weighted averages.
-    Uses database.py run_query for transaction safety.
+    Uses unique lap_id to ensure precision.
     """
-    # 1. Fetch the laps to be merged
-    # We use lap_index because lap_id is a unique big-int from Strava 
-    # and might not be sequential in your mind, but lap_index is.
+
+    print(f"DEBUG: Received strava_id: {strava_id} (Type: {type(strava_id)})")
+    print(f"DEBUG: Received lap_ids: {lap_ids}")
+
+    try:
+        lap_ids = [int(lid) for lid in lap_ids]
+    except (ValueError, TypeError):
+        return False, "Invalid lap IDs provided."
+    
+    # 1. Fetch the laps to be merged using unique lap_ids
     laps = run_query("""
         SELECT * FROM activity_laps 
-        WHERE strava_id = %s AND lap_index = ANY(%s) 
+        WHERE strava_id = %s AND lap_id = ANY(%s) 
         ORDER BY start_index ASC
-    """, (strava_id, lap_indices))
+    """, (strava_id, lap_ids))
+
+    print(f"DEBUG: Database found {len(laps) if laps else 0} laps matching those IDs.")
 
     if len(laps) < 2:
         return False, "Select at least two laps to merge."
@@ -28,22 +37,24 @@ def merge_activity_laps(strava_id, lap_indices):
     total_ela_t = sum(float(l['elapsed_time']) for l in laps)
     total_elev = sum(float(l['total_elevation_gain']) for l in laps)
     
-    # Math: (Value1 * Time1 + Value2 * Time2) / Total Time
-    avg_w = sum(float(l['average_watts']) * float(l['moving_time']) for l in laps) / total_mov_t
-    avg_hr = sum(float(l['average_heartrate']) * float(l['moving_time']) for l in laps) / total_mov_t
-    avg_cad = sum(float(l['average_cadence']) * float(l['moving_time']) for l in laps) / total_mov_t
+    # Math: (Value * Time) / Total Time
+    avg_w = sum(float(l['average_watts'] or 0) * float(l['moving_time']) for l in laps) / total_mov_t
+    avg_hr = sum(float(l['average_heartrate'] or 0) * float(l['moving_time']) for l in laps) / total_mov_t
+    avg_cad = sum(float(l['average_cadence'] or 0) * float(l['moving_time']) for l in laps) / total_mov_t
 
-    # Bounds
+    # Bounds & New Properties
     start_idx = laps[0]['start_index']
     end_idx = laps[-1]['end_index']
     start_date = laps[0]['start_date_local']
-    new_lap_index = laps[0]['lap_index'] # We take the first one's index
+    
+    # We maintain the lap_index of the first lap in the selection
+    new_lap_index = laps[0]['lap_index'] 
     
     try:
         # 3. Create the New Manual Lap
-        # lap_id needs a value. Since it's a manual lap, we can generate a 
-        # fake ID based on strava_id + timestamp to avoid collision.
-        manual_id = int(f"{strava_id}{int(datetime.now().timestamp())}"[:15])
+        # Generate a unique manual_id using timestamp to avoid collisions
+        now = datetime.now()
+        manual_id = int(f"{strava_id}{now.strftime('%M%S%f')}"[:15])
 
         insert_sql = """
             INSERT INTO activity_laps (
@@ -55,17 +66,19 @@ def merge_activity_laps(strava_id, lap_indices):
         """
         run_query(insert_sql, (
             manual_id, strava_id, new_lap_index, start_idx, end_idx, 
-            f"Merged {laps[0]['name']}+{laps[-1]['name']}",
+            f"Merged {laps[0]['lap_index']}-{laps[-1]['lap_index']}",
             total_dist, total_mov_t, total_ela_t, total_elev,
             avg_w, avg_hr, avg_cad, start_date
         ))
 
-        # 4. Hide the originals
+        # 4. Hide exactly what we merged
+        # We don't filter by is_manual here because you might want to merge a 
+        # previously merged lap with another one.
         run_query("""
             UPDATE activity_laps 
             SET is_hidden = TRUE 
-            WHERE strava_id = %s AND lap_index = ANY(%s) AND is_manual = FALSE
-        """, (strava_id, lap_indices))
+            WHERE strava_id = %s AND lap_id = ANY(%s)
+        """, (strava_id, lap_ids))
 
         return True, "Laps merged successfully."
     except Exception as e:

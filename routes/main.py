@@ -323,7 +323,7 @@ def laps_editor(strava_id):
     laps = run_query("""
         SELECT * FROM activity_laps 
         WHERE strava_id = %s 
-        ORDER BY start_index ASC, is_manual ASC
+        ORDER BY start_index ASC, is_manual DESC
     """, (strava_id,))
     
     return render_template('edit_laps.html', 
