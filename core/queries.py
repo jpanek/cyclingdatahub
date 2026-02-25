@@ -219,7 +219,7 @@ SQL_CRAWLER_BACKLOG = """
         s.strava_id IS NULL             -- Case 1: We don't have streams yet
         OR 
         a.resource_state = 2            -- Case 2: We have streams, but metadata is only 'Summary'
-    )./
+    )
   ORDER BY a.start_date_local DESC
   LIMIT %s
 """
