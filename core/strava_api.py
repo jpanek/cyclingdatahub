@@ -124,7 +124,7 @@ def sync_activity_streams(conn, athlete_id, activity_id, force=False):
 
         # 3. Save to Database
         save_db_activity_stream(conn, activity_id, streams_data)
-        #print(f"\tSaved streams for activity {activity_id}")
+        print(f"\tSaved streams for activity {activity_id}")
         return True
 
     except Exception as e:
