@@ -6,10 +6,9 @@
 import time, sys, os
 from datetime import datetime, timedelta
 from psycopg2.extras import RealDictCursor
-from core.database import get_db_connection, get_db_all_athletes, run_query
-from core.strava_api import get_valid_access_token, sync_activity_streams
+from core.database import get_db_connection, get_db_all_athletes, run_query, save_db_activities
+from core.strava_api import get_valid_access_token, fetch_activities_list
 from run_sync import sync_single_activity
-from core.processor import process_activity_metrics
 from core.queries import SQL_CRAWLER_BACKLOG
 from config import CRAWL_BACKFILL_SIZE, CRAWL_HISTORY_DAYS, ANALYTICS_RECALC_SIZE
 
@@ -34,6 +33,34 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
     for athlete in athletes:
         a_id = athlete['athlete_id']
         name = athlete['firstname']
+
+        # ===============================================================================================================
+        # 1. Fetch all activity summaries from history:
+        res = run_query("SELECT MIN(start_date_local) as oldest FROM activities WHERE athlete_id = %s", (a_id,))
+        db_oldest = res[0]['oldest'] if res and res[0]['oldest'] else None
+
+        if db_oldest:
+            # If the oldest activity we have is still within our history window,
+            # fetch the next 200 summaries (no streams) to keep pushing back.
+            max_look_back_date = datetime.now() - timedelta(days=history_days)
+            
+            if db_oldest > max_look_back_date:
+                print(f"\t📜 {name}: Oldest activity is {db_oldest.date()}. Fetching older summaries...")
+                conn = get_db_connection()
+                try:
+                    tokens_dict = get_valid_access_token(conn, a_id)
+                    # Use 'before' to get activities older than our current oldest
+                    before_ts = int(db_oldest.timestamp())
+                    older_summaries = fetch_activities_list(tokens_dict['access_token'], {"before": before_ts, "per_page": 200})
+                    
+                    if older_summaries:
+                        save_db_activities(conn, a_id, older_summaries)
+                        print(f"\t✅ Added {len(older_summaries)} historical summaries.")
+                    else:
+                        print(f"\t🏁 Reached end of Strava history for {name}.")
+                finally:
+                    conn.close()
+        # ===============================================================================================================
 
         to_process = run_query(SQL_CRAWLER_BACKLOG, (a_id, max_look_back_date, batch_size_per_user))
 
