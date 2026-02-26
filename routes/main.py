@@ -4,7 +4,7 @@ import csv, io
 import json
 from flask import (
     Blueprint, render_template, request, Response, jsonify,
-    session, current_app, flash, redirect, url_for
+    session, current_app, flash, redirect, url_for, abort
 )
 from datetime import datetime, timedelta
 from config import LOG_PATH
@@ -21,7 +21,10 @@ from core.queries import (
     SQL_DAILY_ACTIVITIES_HISTORY,
     SQL_RAW_DATA,
     SQL_GET_USER_SETTINGS,
-    SQL_GET_HOME_SUMMARY
+    SQL_GET_HOME_SUMMARY,
+    SQL_ADMIN_OVERVIEW, 
+    SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG, 
+    SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG
 )
 
 main_bp = Blueprint('main', __name__)
@@ -212,7 +215,6 @@ def show_logs():
     
     admin_id = current_app.config.get('USER_STRAVA_ATHLETE_ID')
     if session.get('athlete_id') != admin_id:
-        from flask import abort
         abort(403)
 
     # Define allowed logs for security
@@ -330,6 +332,28 @@ def laps_editor(strava_id):
                            strava_id=strava_id, 
                            activity=activity, 
                            laps=laps)
+
+@main_bp.route('/admin')
+@login_required
+def admin_dashboard():
+    # Security check: strictly restricted to your Strava ID
+    admin_id = current_app.config.get('USER_STRAVA_ATHLETE_ID')
+    if session.get('athlete_id') != admin_id:
+        abort(403)
+
+    # Pulling history window from app config instead of direct import
+    history_days = current_app.config.get('CRAWL_HISTORY_DAYS', 500)
+
+    # Fetching data
+    overview = run_query(SQL_ADMIN_OVERVIEW)
+    crawler = run_query(SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG, (history_days,))
+    analytics = run_query(SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG)
+    
+    return render_template('admin_overview.html', 
+                           overview=overview, 
+                           crawler=crawler, 
+                           analytics=analytics,
+                           history_days=history_days)
 
 @main_bp.route('/privacy')
 def privacy():

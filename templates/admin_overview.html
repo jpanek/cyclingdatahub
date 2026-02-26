@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | Cycling Stats{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-2">
+            <h4 class="mb-0 fw-bold">Admin Dashboard</h4>
+            <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">System Health</span>
+        </div>
+        <div class="text-muted small">
+            Detail history: <span class="fw-bold">{{ history_days }} days</span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-bold py-3 border-bottom">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-database-check text-primary me-2"></i>
+                Athlete Data Coverage
+            </div>
+        </div>
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Athlete</th>
+                        <th class="text-center">Activities</th>
+                        <th>Data Range</th>
+                        <th class="text-center">Streams</th>
+                        <th>Stream Range</th>
+                        <th class="text-center">Detailed (RS3)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in overview %}
+                    <tr>
+                        <td class="ps-3">
+                            <span class="fw-bold text-dark">{{ row.athlete_name }}</span>
+                            <div class="text-muted small" style="font-size: 0.7rem;">ID: {{ row.athlete_id }}</div>
+                        </td>
+                        <td class="text-center">{{ "{:,}".format(row.activities) }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-dark border fw-normal">{{ row.min_date }}</span>
+                                <i class="bi bi-arrow-right text-muted small"></i>
+                                <span class="badge bg-light text-dark border fw-normal">{{ row.max_date }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold">{{ "{:,}".format(row.streams) }}</span>
+                            <small class="text-muted">({{ ((row.streams / row.activities) * 100)|round(1) if row.activities > 0 else 0 }}%)</small>
+                        </td>
+                        <td>
+                            {% if row.first_stream %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-primary border border-primary border-opacity-10 fw-normal">{{ row.first_stream }}</span>
+                                <i class="bi bi-arrow-right text-muted small"></i>
+                                <span class="badge bg-light text-primary border border-primary border-opacity-10 fw-normal">{{ row.last_stream }}</span>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small italic">No streams found</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold">{{ "{:,}".format(row.detailed_activities) }}</span>
+                            <small class="text-muted">({{ ((row.detailed_activities / row.activities) * 100)|round(1) if row.activities > 0 else 0 }}%)</small>
+                        </td>
+
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cloud-arrow-down text-warning me-2"></i>Crawler Sync Backlog</span>
+                    <span class="badge bg-light text-dark border fw-normal" style="font-size: 0.7rem;">Last {{ history_days }}d</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th class="ps-3">Athlete</th>
+                                <th class="text-center">Total Backlog</th>
+                                <th class="text-center">No Stream</th>
+                                <th class="text-center">RS2 Only</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in crawler %}
+                            <tr>
+                                <td class="ps-3 py-2">{{ row.athlete_name }}</td>
+                                <td class="text-center fw-bold {{ 'text-danger' if row.total_backlog_size > 0 else 'text-success' }}">
+                                    {{ row.total_backlog_size }}
+                                </td>
+                                <td class="text-center text-muted">{{ row.missing_streams }}</td>
+                                <td class="text-center text-muted">{{ row.missing_details }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="bi bi-cpu text-danger me-2"></i>Analytics Recalculation
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th class="ps-3">Athlete</th>
+                                <th class="text-center">Pending</th>
+                                <th class="text-center">Oldest</th>
+                                <th class="text-center">Newest</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in analytics %}
+                            <tr>
+                                <td class="ps-3 py-2">{{ row.athlete_name }}</td>
+                                <td class="text-center fw-bold {{ 'text-danger' if row.missing_recalc > 0 else 'text-success' }}">
+                                    {{ row.missing_recalc }}
+                                </td>
+                                <td class="text-center small text-muted">{{ row.min_date }}</td>
+                                <td class="text-center small text-muted">{{ row.max_date }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not analytics %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted small">
+                                    <i class="bi bi-check-circle text-success me-1"></i> All analytics up to date
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}

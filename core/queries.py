@@ -321,3 +321,51 @@ LEFT JOIN latest_activity la ON TRUE
 LEFT JOIN monthly_stats m ON TRUE
 WHERE u.athlete_id = %s;
 """
+
+
+SQL_ADMIN_OVERVIEW = """
+    SELECT 
+        u.firstname || ' ' || u.lastname AS athlete_name,
+        u.athlete_id,
+        count(*) activities,
+        min(a.start_date_local::date) as min_date,
+        max(a.start_date_local::date) as max_date,
+        COUNT(a.strava_id) FILTER (WHERE s.strava_id is NOT NULL) AS streams,
+        min(a.start_date_local::date) FILTER (WHERE s.strava_id is NOT NULL) AS first_stream,
+        max(a.start_date_local::date) FILTER (WHERE s.strava_id is NOT NULL) AS last_stream,
+        COUNT(a.strava_id) FILTER (WHERE a.resource_state = 3) AS detailed_activities
+    FROM users u
+    JOIN activities a ON u.athlete_id = a.athlete_id
+    LEFT JOIN activity_streams s ON s.strava_id = a.strava_id 
+    GROUP BY u.athlete_id, u.firstname, u.lastname;
+"""
+
+SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG = """
+    SELECT 
+        u.firstname || ' ' || u.lastname AS athlete_name,
+        COUNT(a.strava_id) AS total_backlog_size,
+        COUNT(a.strava_id) FILTER (WHERE s.strava_id IS NULL) AS missing_streams,
+        COUNT(a.strava_id) FILTER (WHERE s.strava_id IS NOT NULL AND a.resource_state = 2) AS missing_details
+    FROM users u
+    JOIN activities a ON u.athlete_id = a.athlete_id
+    LEFT JOIN activity_streams s ON a.strava_id = s.strava_id
+    WHERE a.streams_missing != TRUE
+      AND a.start_date_local >= NOW() - INTERVAL '%s days'
+      AND (s.strava_id IS NULL OR a.resource_state = 2)
+    GROUP BY u.athlete_id, u.firstname, u.lastname
+    ORDER BY u.athlete_id DESC;
+"""
+
+SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG = """
+    SELECT 
+        u.firstname || ' ' || u.lastname AS athlete_name,
+        u.athlete_id,
+        count(*) missing_recalc,
+        min(a.start_date_local::date) as min_date,
+        max(a.start_date_local::date) as max_date
+    FROM users u
+    JOIN activities a ON u.athlete_id = a.athlete_id
+    WHERE a.needs_recalculation = True
+    GROUP BY u.athlete_id, u.firstname, u.lastname
+    ORDER BY u.athlete_id DESC;
+"""
