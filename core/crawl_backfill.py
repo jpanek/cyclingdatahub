@@ -35,21 +35,17 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
         name = athlete['firstname']
 
         # ===============================================================================================================
-        # 1. Fetch all activity summaries from history:
-        res = run_query("SELECT MIN(start_date_local) as oldest FROM activities WHERE athlete_id = %s", (a_id,))
-        db_oldest = res[0]['oldest'] if res and res[0]['oldest'] else None
+        # 1. Fetch all activity summaries from history (Run only if not already completed):
+        history_done = athlete.get('history_summaries_synced', False)
+        if not history_done:
+            res = run_query("SELECT MIN(start_date_local) as oldest FROM activities WHERE athlete_id = %s", (a_id,))
+            db_oldest = res[0]['oldest'] if res and res[0]['oldest'] else None
 
-        if db_oldest:
-            # If the oldest activity we have is still within our history window,
-            # fetch the next 200 summaries (no streams) to keep pushing back.
-            max_look_back_date = datetime.now() - timedelta(days=history_days)
-            
-            if db_oldest > max_look_back_date:
+            if db_oldest:
                 print(f"\t📜 {name}: Oldest activity is {db_oldest.date()}. Fetching older summaries...")
                 conn = get_db_connection()
                 try:
                     tokens_dict = get_valid_access_token(conn, a_id)
-                    # Use 'before' to get activities older than our current oldest
                     before_ts = int(db_oldest.timestamp())
                     older_summaries = fetch_activities_list(tokens_dict['access_token'], {"before": before_ts, "per_page": 200})
                     
@@ -57,7 +53,9 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
                         save_db_activities(conn, a_id, older_summaries)
                         print(f"\t✅ Added {len(older_summaries)} historical summaries.")
                     else:
-                        print(f"\t🏁 Reached end of Strava history for {name}.")
+                        # No more activities found on Strava -> We are finished forever.
+                        print(f"\t🏁 Reached end of Strava history for {name}. Marking as synced.")
+                        run_query("UPDATE users SET history_summaries_synced = TRUE WHERE athlete_id = %s", (a_id,))
                 finally:
                     conn.close()
         # ===============================================================================================================
