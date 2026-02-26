@@ -96,16 +96,27 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in crawler %}
-                            <tr>
-                                <td class="ps-3 py-2">{{ row.athlete_name }}</td>
-                                <td class="text-center fw-bold {{ 'text-danger' if row.total_backlog_size > 0 else 'text-success' }}">
-                                    {{ row.total_backlog_size }}
-                                </td>
-                                <td class="text-center text-muted">{{ row.missing_streams }}</td>
-                                <td class="text-center text-muted">{{ row.missing_details }}</td>
-                            </tr>
-                            {% endfor %}
+                            {% if crawler and crawler|length > 0 %}
+                                {% for row in crawler %}
+                                    {# We only want to show the row if there's actually a backlog for this person #}
+                                    {% if row.total_backlog_size > 0 %}
+                                        <tr>
+                                            <td class="ps-3 py-2">{{ row.athlete_name }}</td>
+                                            <td class="text-center fw-bold text-danger">
+                                                {{ row.total_backlog_size }}
+                                            </td>
+                                            <td class="text-center text-muted">{{ row.missing_streams }}</td>
+                                            <td class="text-center text-muted">{{ row.missing_details }}</td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted small">
+                                        <i class="bi bi-check-circle text-success me-1"></i> All backlog processed
+                                    </td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>

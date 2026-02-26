@@ -51,7 +51,7 @@
     {% set max_lap_power = laps | map(attribute='average_watts') | map('float') | max | default(1) %}
     {% set max_lap_hr = laps | map(attribute='average_heartrate') | map('float') | max | default(1) %}
 
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm border-0 mb-3">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="lapsTable" style="font-size: 0.9rem;">
                 <thead class="table-light">
