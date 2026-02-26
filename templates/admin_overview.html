@@ -162,6 +162,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Database and tables overview -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-hdd-network text-info me-2"></i>Database Storage & Stats</span>
+                    <span class="badge bg-dark bg-opacity-10 text-dark border border-dark border-opacity-25 fw-bold">
+                        Total DB: {{ db_size }}
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" style="font-size: 0.8rem;">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th class="ps-3">Table Name</th>
+                                <th class="text-center">Table Size</th>
+                                <th class="text-center">Index Size</th>
+                                <th class="text-center">Total Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table in table_stats %}
+                            <tr>
+                                <td class="ps-3 py-2 fw-bold text-secondary">{{ table.table_name }}</td>
+                                <td class="text-center">{{ table.table_size }}</td>
+                                <td class="text-center text-muted">{{ table.index_size }}</td>
+                                <td class="text-center fw-bold">{{ table.total_size }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     
 </div>
 {% endblock %}

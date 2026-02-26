@@ -369,3 +369,15 @@ SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG = """
     GROUP BY u.athlete_id, u.firstname, u.lastname
     ORDER BY u.athlete_id DESC;
 """
+
+SQL_DB_SIZE = "SELECT pg_size_pretty(pg_database_size('db_cycling_data')) as total_db_size;"
+
+SQL_TABLE_STATS = """
+    SELECT
+        relname AS table_name,
+        pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+        pg_size_pretty(pg_relation_size(relid)) AS table_size,
+        pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
+    FROM pg_catalog.pg_statio_user_tables
+    ORDER BY pg_total_relation_size(relid) DESC;
+"""

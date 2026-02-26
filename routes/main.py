@@ -24,7 +24,8 @@ from core.queries import (
     SQL_GET_HOME_SUMMARY,
     SQL_ADMIN_OVERVIEW, 
     SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG, 
-    SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG
+    SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG,
+    SQL_DB_SIZE, SQL_TABLE_STATS
 )
 
 main_bp = Blueprint('main', __name__)
@@ -349,11 +350,17 @@ def admin_dashboard():
     crawler = run_query(SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG, (history_days,))
     analytics = run_query(SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG)
     
+    db_size_res = run_query(SQL_DB_SIZE)
+    db_size = db_size_res[0]['total_db_size'] if db_size_res else "N/A"
+    table_stats = run_query(SQL_TABLE_STATS)
+    
     return render_template('admin_overview.html', 
                            overview=overview, 
                            crawler=crawler, 
                            analytics=analytics,
-                           history_days=history_days)
+                           history_days=history_days,
+                           db_size=db_size,
+                           table_stats=table_stats)
 
 @main_bp.route('/privacy')
 def privacy():
