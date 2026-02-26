@@ -16,12 +16,32 @@ from core.processor import run_delayed_delete_recalc
 
 ops_bp = Blueprint('ops', __name__)
 
+@ops_bp.before_app_request
+def debug_simulation_override():
+    simulate_id = current_app.config.get('SIMULATE_USER_ID')
+    
+    if simulate_id:
+        # ONLY save if we haven't already saved an original, 
+        # AND the current ID isn't already the simulation ID.
+        if 'athlete_id' in session and session['athlete_id'] != simulate_id:
+            if 'original_athlete_id' not in session:
+                session['original_athlete_id'] = session['athlete_id']
+            
+        session['athlete_id'] = simulate_id
+    else:
+        # CLEANUP: If simulation is turned off, restore the real ID
+        if 'original_athlete_id' in session:
+            session['athlete_id'] = session.pop('original_athlete_id')
+
 @ops_bp.app_context_processor
 def inject_globals():
     """
     Injects global variables into all templates based on the logged-in user.
     """
     athlete_id = session.get('athlete_id')
+
+    #simulate someone else:
+    #athlete_id = 23331177
     
     # If no one is logged in, return safe defaults
     if not athlete_id:

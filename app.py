@@ -22,8 +22,5 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(map_bp)
 
-# Initialize and attach Dash
-#init_activity_dashboard(app)
-
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
