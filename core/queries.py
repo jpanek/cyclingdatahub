@@ -170,13 +170,13 @@ SQL_POWER_PROGRESSION = """
         a.start_date_local as date, 
         a.name as activity_name, 
         a.strava_id,
-        aa.{col} as power,
+        (aa.power_curve->>%s)::int as power,  -- Extract key from JSON and cast to int
         aa.baseline_ftp
     FROM activities a
     JOIN activity_analytics aa ON a.strava_id = aa.strava_id
     WHERE a.athlete_id = %s
-    AND aa.{col} IS NOT NULL 
-    AND aa.{col} > 0
+    AND (aa.power_curve->>%s) IS NOT NULL    -- Ensure the specific interval exists
+    AND (aa.power_curve->>%s)::int > 0
     AND a.type IN ('Ride','VirtualRide')
     AND (
         %s = 0 OR 
@@ -321,7 +321,6 @@ LEFT JOIN latest_activity la ON TRUE
 LEFT JOIN monthly_stats m ON TRUE
 WHERE u.athlete_id = %s;
 """
-
 
 SQL_ADMIN_OVERVIEW = """
     SELECT 

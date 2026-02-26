@@ -197,17 +197,31 @@ def get_performance_summary(athlete_id, months_limit=12):
     from core.database import run_query
     from datetime import datetime, timedelta
     
-    intervals = {'5s': 'peak_5s', '1m': 'peak_1m', '5m': 'peak_5m', '20m': 'peak_20m'}
+    intervals = {
+        '5s': '5', 
+        '1m': '60', 
+        '5m': '300', 
+        '10m': '600', 
+        '20m': '1200', 
+        '60m': '3600'
+    }
     all_progression, all_time_peaks, recent_peaks = {}, {}, {}
     
     today = datetime.now().date()
     # Radar chart looks at last 30 days of actual data
     global_recent_cutoff = today - timedelta(days=30)
     
-    for label, col in intervals.items():
-        query = SQL_POWER_PROGRESSION.replace("{col}", col)
-        # PASS TWICE: Once for the '0' check, once for the interval
-        raw_data = run_query(query, (athlete_id, months_limit, months_limit))
+    for label, json_key in intervals.items():
+        query = SQL_POWER_PROGRESSION
+        # Pass the json_key into the query placeholders
+        raw_data = run_query(query, (
+            json_key,       # For SELECT
+            athlete_id, 
+            json_key,       # For IS NOT NULL check
+            json_key,       # For > 0 check
+            months_limit, 
+            months_limit
+        ))
         
         if not raw_data:
             all_progression[label], all_time_peaks[label], recent_peaks[label] = [], 0, 0

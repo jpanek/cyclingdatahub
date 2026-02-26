@@ -159,10 +159,8 @@ def activity_detail(strava_id):
 def performance_dashboard():
     athlete_id = session.get('athlete_id')
     
-    # Get 'months' from URL, default to 12
     months = request.args.get('months', default=12, type=int)
     
-    # Update your get_performance_summary to accept the months parameter
     data = get_performance_summary(athlete_id, months_limit=months)
 
     return render_template(

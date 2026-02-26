@@ -82,20 +82,21 @@
                     {% for act in activities %}
                     <tr 
                         {% if not act.streams_missing %}
-                            class="activity-row-clickable"
-                            style="cursor: pointer;" 
-                            onclick="window.location='/activity/{{ act.strava_id }}'"
+                            class="activity-row-clickable position-relative"
                         {% else %}
                             class="text-muted opacity-50"
-                            style="cursor: default;"
                         {% endif %}
                     >
                         <td class="ps-3 text-nowrap">
                             {{ act.start_datetime.strftime('%d %b %Y') if act.start_datetime else '-' }}
                         </td>
                         <td class="fw-semibold text-truncate" style="max-width: 150px;" title="{{ act.name }}">
-                            {{ act.name }}
-                            {% if act.streams_missing %}
+                            {% if not act.streams_missing %}
+                                <a href="/activity/{{ act.strava_id }}" class="stretched-link text-decoration-none text-dark">
+                                    {{ act.name }}
+                                </a>
+                            {% else %}
+                                {{ act.name }}
                                 <small class="fw-normal" style="font-size: 0.7rem;">(Summary Only)</small>
                             {% endif %}
                         </td>
@@ -116,17 +117,13 @@
                                 {{ mins }}m
                             {% endif %}
                         </td>
-                        <td>
-                            {{ (act.average_watts | default(0)) | int }} W
-                        </td>
-                        <td>
-                            {{ (act.tss | default(0)) | int }}
-                        </td>
+                        <td>{{ (act.average_watts | default(0)) | int }} W</td>
+                        <td>{{ (act.tss | default(0)) | int }}</td>
                         <td>{{ (act.average_heartrate | default(0)) | int }} bpm</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
+                        <td colspan="8" class="text-center py-5 text-muted">
                             <i class="bi bi-search d-block mb-2 fs-4"></i>
                             No activities found for the selected criteria.
                         </td>

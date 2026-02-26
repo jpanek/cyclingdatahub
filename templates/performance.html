@@ -9,6 +9,7 @@
         <h4 class="mb-0 fw-semibold">Ride Performance Trends</h4>
         
         <div class="d-flex flex-wrap gap-2 gap-sm-3 align-items-center">
+            <!-- History period picker -->
             <select class="form-select form-select-sm shadow-sm" id="historyFilter" style="width: 140px;">
                 <option value="6" {% if current_filter == 6 %}selected{% endif %}>Last 6 Months</option>
                 <option value="12" {% if current_filter == 12 %}selected{% endif %}>Last Year</option>
@@ -16,12 +17,15 @@
                 <option value="36" {% if current_filter == 36 %}selected{% endif %}>Last 3 Years</option>
                 <option value="0" {% if current_filter == 0 %}selected{% endif %}>Full History</option>
             </select>
-    
+
+            <!-- Duration picker -->
             <div class="btn-group shadow-sm" role="group" id="durationPicker">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="5s">5s</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="1m">1m</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="5m">5m</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="10m">10m</button> 
                 <button type="button" class="btn btn-sm btn-outline-secondary active" data-interval="20m">20m</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-interval="60m">60m</button> 
             </div>
         </div>
     </div>
@@ -216,26 +220,31 @@
             .sort((a, b) => b.y - a.y)
             .slice(0, 10);
 
-        topPerformances.forEach((effort, index) => {
-            const row = document.createElement('tr');
-            row.style.cursor = 'pointer';
-            row.onclick = () => window.location.href = `/activity/${effort.id}`;
+            topPerformances.forEach((effort, index) => {
+                const row = document.createElement('tr');
+                // Important: Add 'position-relative' so the link knows where to stop stretching
+                row.className = 'position-relative'; 
 
-            if (index >= 5) row.classList.add('d-none', 'extra-row');
+                if (index >= 5) row.classList.add('d-none', 'extra-row');
 
-            const ftpPct = effort.ftp ? Math.round((effort.y / effort.ftp) * 100) : '-';
-            
-            row.innerHTML = `
-                <td class="ps-3 text-muted">${index + 1}</td>
-                <td class="fw-medium">${truncate(effort.name, 60)}</td>
-                <td class="text-center small">${effort.x}</td>
-                <td class="text-center fw-bold">${effort.y}W</td>
-                <td class="text-center"><span class="badge bg-light text-dark border">${ftpPct}%</span></td>
-            `;
-            tableBody.appendChild(row);
+                const ftpPct = effort.ftp ? Math.round((effort.y / effort.ftp) * 100) : '-';
+                const activityUrl = `/activity/${effort.id}`;
+                
+                row.innerHTML = `
+                    <td class="ps-3 text-muted">${index + 1}</td>
+                    <td class="fw-medium">
+                        <a href="${activityUrl}" class="stretched-link text-decoration-none text-dark">
+                            ${truncate(effort.name, 60)}
+                        </a>
+                    </td>
+                    <td class="text-center small">${effort.x}</td>
+                    <td class="text-center fw-bold">${effort.y}W</td>
+                    <td class="text-center"><span class="badge bg-light text-dark border">${ftpPct}%</span></td>
+                `;
+                tableBody.appendChild(row);
 
-            toggleBtn.style.display = topPerformances.length > 5 ? 'block' : 'none';
-        });
+                toggleBtn.style.display = topPerformances.length > 5 ? 'block' : 'none';
+            });
     };
 
     // Initialize
