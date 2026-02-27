@@ -304,6 +304,7 @@ SELECT
     u.firstname,
     f.date,
     u.manual_ftp, u.detected_ftp, u.ftp_detected_at as ftp_date,
+    u.manual_ftp_updated_at,
     COALESCE(f.ctl, 0) as ctl, 
     COALESCE(f.atl, 0) as atl, 
     COALESCE(f.tsb, 0) as tsb,
@@ -369,7 +370,9 @@ SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG = """
     ORDER BY u.athlete_id DESC;
 """
 
-SQL_DB_SIZE = "SELECT pg_size_pretty(pg_database_size('db_cycling_data')) as total_db_size;"
+SQL_DB_SIZE = """
+SELECT pg_size_pretty(pg_database_size('db_cycling_data')) as total_db_size;
+"""
 
 SQL_TABLE_STATS = """
     SELECT

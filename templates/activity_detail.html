@@ -462,7 +462,7 @@
 <script>
     const ctx = document.getElementById('rideChart').getContext('2d');
 
-    // Simple Moving Average (SMA) helper
+    // 1. Helpers --------------------------------------------------
     const smoothData = (data, windowSize) => {
         if (!data || data.length === 0) return [];
         return data.map((val, index, arr) => {
@@ -473,13 +473,12 @@
             return sum / subset.length;
         });
     };
-    
-    // Injecting the streams
-    const timeData = {{ activity.time_series | tojson }};
-    const powerData = smoothData({{ activity.watts_series | tojson }}, 30);
-    const hrData = smoothData({{ activity.heartrate_series | tojson }},3);
-    const cadenceData = smoothData({{ activity.cadence_series | tojson }},3);
-    const altitudeData = {{ activity.altitude_series | tojson }}; // New stream
+
+    // Downsampling helper
+    const downsample = (data, step) => {
+        if (!data) return [];
+        return data.filter((_, i) => i % step === 0);
+    };
 
     const formatTime = (seconds) => {
         const h = Math.floor(seconds / 3600);
@@ -487,6 +486,22 @@
         const s = seconds % 60;
         return [h, m, s].map(v => v < 10 ? "0" + v : v).join(":");
     };
+
+    // 2. Data Processing -------------------------------------------
+    const rawTime = {{ activity.time_series | tojson or '[]' }};
+    
+    // Calculate adaptive step to keep ~1200 points on the chart
+    const targetPoints = 1200;
+    const step = Math.max(1, Math.ceil(rawTime.length / targetPoints));
+
+    // Process streams: Smooth (if needed), then Downsample
+    const timeData = downsample(rawTime, step);
+    const powerData = downsample(smoothData({{ activity.watts_series | tojson or '[]' }}, 30), step);
+    const hrData = downsample(smoothData({{ activity.heartrate_series | tojson or '[]' }}, 3), step);
+    const cadenceData = downsample(smoothData({{ activity.cadence_series | tojson or '[]' }}, 30), step);
+    const altitudeData = downsample({{ activity.altitude_series | tojson or '[]' }}, step);
+
+    console.log(`Downsampling active: Step ${step} (Original: ${rawTime.length}, Chart: ${timeData.length})`);
 
     new Chart(ctx, {
         type: 'line',
@@ -531,7 +546,8 @@
                     fill: false,
                     yAxisID: 'yHR', 
                     pointRadius: 0,
-                    tension: 0.1
+                    tension: 0.1,
+                    hidden: true
                 }
             ]
         },

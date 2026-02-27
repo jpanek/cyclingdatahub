@@ -50,9 +50,16 @@
                         <a href="/performance" class="text-decoration-none text-dark stretched-link">Performance</a>
                     </h3>
                     <p class="text-muted small mb-0">
-                        FTP {{ summary.manual_ftp or summary.detected_ftp }}W
-                        {% if summary.ftp_date %}
-                        •  Set on {{ summary.ftp_date.strftime('%b %d, %Y') }}
+                        {% if summary.manual_ftp %}
+                            FTP {{ summary.manual_ftp }}W
+                            {% if summary.manual_ftp_updated_at %}
+                            • Manually set on {{ summary.manual_ftp_updated_at.strftime('%b %d, %Y') }}
+                            {% endif %}
+                        {% else %}
+                            FTP {{ summary.detected_ftp }}W
+                            {% if summary.ftp_date %}
+                            • Detected on {{ summary.ftp_date.strftime('%b %d, %Y') }}
+                            {% endif %}
                         {% endif %}
                     </p>
                 </div>
