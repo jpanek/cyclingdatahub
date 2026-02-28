@@ -26,13 +26,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-"""
+
 @auth_bp.route('/force-login')
 def force_login():
     #Simulates a successful Strava OAuth login.
     session['athlete_id'] = USER_STRAVA_ATHLETE_ID
     return redirect(url_for('main.index'))
-"""
+
 
 @auth_bp.route('/login')
 def login():
