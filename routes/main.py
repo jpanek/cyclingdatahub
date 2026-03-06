@@ -232,7 +232,7 @@ def show_logs():
         with open(log_path, 'r') as f:
             lines = f.readlines()
             # Take last 200 lines and reverse them so newest is at the top
-            content = "".join(reversed(lines[-200:]))
+            content = "".join(reversed(lines[-300:]))
     else:
         content = f"Log file {filename} not found."
 

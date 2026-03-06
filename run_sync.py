@@ -14,7 +14,10 @@ import sys
 def sync_single_activity(athlete_id, activity_id, run_analytics=True):
     conn = get_db_connection()
     try:
-        print(f"\n\t--- Targeted Sync: Activity {activity_id} for Athlete {athlete_id} ---")
+        user = get_db_user(conn, athlete_id)
+        athlete_name = f"{user['firstname']} {user['lastname']}" if user else f"ID: {athlete_id}"
+
+        print(f"\t--- Targeted Sync: Activity {activity_id} for {athlete_name} ---")
         
         # 1. Get valid token
         tokens_dict = get_valid_access_token(conn, athlete_id)
@@ -171,7 +174,7 @@ def now_str():
 
 if __name__ == "__main__":
     
-    print(f"\n{'='*80}")
+    print(f"\n{'='*60}")
     print(f"Sync started: {now_str()}")
 
     if len(sys.argv) > 2:
@@ -189,4 +192,4 @@ if __name__ == "__main__":
             run_sync(athlete['athlete_id'], athlete['firstname'])
 
     print(f"Sync Finished: {now_str()}")
-    print(f"{'='*80}\n")
+    print(f"{'='*60}\n")

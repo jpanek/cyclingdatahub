@@ -77,3 +77,30 @@
 .leaflet-bar a.recenter-control:hover {
     background-color: #b2acac;
 }
+
+
+/* Style for log to show line numbers */
+#log-viewer {
+    display: block;
+    counter-reset: line; /* Initialize the counter */
+}
+.log-line {
+    display: block;
+    position: relative;
+    padding-left: 3.5rem; /* Space for the numbers */
+    min-height: 1.25rem; /* Forces empty lines to have height */
+    white-space: pre-wrap;
+}
+.log-line::before {
+    counter-increment: line;
+    content: counter(line); /* Display the number */
+    position: absolute;
+    left: 0;
+    width: 1.5rem;
+    text-align: right;
+    color: #999;
+    font-size: 0.65rem;
+    user-select: none; /* Prevents numbers from being highlighted during copy-paste */
+    border-right: 1px solid #eee;
+    padding-right: 0.5rem;
+}
