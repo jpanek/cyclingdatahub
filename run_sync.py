@@ -9,6 +9,7 @@ from core.database import (
 )
 from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list, fetch_activity_detail
 from core.processor import process_activity_metrics
+from core.crawl_analytics import sync_local_analytics
 import sys
 
 def sync_single_activity(athlete_id, activity_id, run_analytics=True):
@@ -36,9 +37,10 @@ def sync_single_activity(athlete_id, activity_id, run_analytics=True):
             from core.strava_api import sync_activity_streams
             sync_activity_streams(conn, athlete_id, activity_id)
             
-            #5. process analytics
-            process_activity_metrics(activity_id, force=True)
-            print(f"\t✨ Analytics metrics recalculated for {activity_id}")
+            if False:
+                #5. process analytics - no need anymore
+                process_activity_metrics(activity_id, force=True)
+                print(f"\t✨ Analytics metrics recalculated for {activity_id}")
 
             #6. Invalidate all activity analytics afterwards
             from core.database import invalidate_analytics_from_date
@@ -56,8 +58,10 @@ def sync_single_activity(athlete_id, activity_id, run_analytics=True):
                 # =======================================================================================
 
                 #7. actually run the analytics crawl:
-                from core.crawl_analytics import sync_local_analytics
-                sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,target_athlete_id=athlete_id)
+                sync_local_analytics(batch_size_per_user=ANALYTICS_RECALC_SIZE,
+                                     target_athlete_id=athlete_id, 
+                                     priority_sid=activity_id
+                                     )
 
         else:
             print(f"\t⚠️ Could not find activity {activity_id} on Strava.")
@@ -192,4 +196,4 @@ if __name__ == "__main__":
             run_sync(athlete['athlete_id'], athlete['firstname'])
 
     print(f"Sync Finished: {now_str()}")
-    print(f"{'='*60}\n")
+    print(f"{'='*60}")

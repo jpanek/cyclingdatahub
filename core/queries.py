@@ -225,12 +225,18 @@ SQL_CRAWLER_BACKLOG = """
 """
 
 SQL_RECALC_QUEUE = """
-    SELECT strava_id, type, start_date_local
-    FROM activities 
-    WHERE athlete_id = %s 
-      AND needs_recalculation = TRUE
+    SELECT DISTINCT strava_id, type, start_date_local FROM (
+        (SELECT strava_id, type, start_date_local
+         FROM activities 
+         WHERE athlete_id = %s AND needs_recalculation = TRUE
+         ORDER BY start_date_local ASC
+         LIMIT %s)
+        UNION
+        SELECT strava_id, type, start_date_local
+        FROM activities 
+        WHERE strava_id = %s
+    ) as combined
     ORDER BY start_date_local ASC
-    LIMIT %s
 """
 
 SQL_INVALIDATE_FORWARD = """

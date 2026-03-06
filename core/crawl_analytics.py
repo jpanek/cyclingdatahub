@@ -14,16 +14,13 @@ from core.queries import SQL_RECALC_QUEUE
 from config import ANALYTICS_RECALC_SIZE
 
 
-def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
+def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None, priority_sid=None):
     """
     Loop through users, and recalculate all analytics that needs recalc up to given batch size.
     Strictly in chronological order.
     """
-    if target_athlete_id:
-        # Just wrap the single ID in a list to keep the loop logic below
-        athletes = [{'athlete_id': target_athlete_id, 'firstname': 'Targeted'}]
-    else:
-        athletes = get_db_all_athletes()
+
+    athletes = [{'athlete_id': target_athlete_id, 'firstname': 'Targeted'}] if target_athlete_id else get_db_all_athletes()
 
     if not athletes:
         print(" No users found in database")
@@ -33,7 +30,7 @@ def sync_local_analytics(batch_size_per_user = 50, target_athlete_id=None):
         a_id = athlete['athlete_id']
         name = athlete['firstname']
 
-        to_process = run_query(SQL_RECALC_QUEUE, (a_id, batch_size_per_user))
+        to_process = run_query(SQL_RECALC_QUEUE, (a_id, batch_size_per_user, priority_sid))
 
         # 1. Process pending activities if they exist
         if to_process:
