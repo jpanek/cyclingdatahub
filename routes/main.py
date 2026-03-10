@@ -218,6 +218,7 @@ def activities_list():
         activity_types=activity_types
     )
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/log')
 @login_required
 def show_logs():
@@ -248,6 +249,7 @@ def show_logs():
 
     return render_template('logs.html', content=content, log_type=log_type)
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
@@ -292,6 +294,7 @@ def settings():
                            zone_ranges=zone_ranges
     )
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/fitness')
 @login_required
 def fitness_dashboard():
@@ -320,6 +323,7 @@ def fitness_dashboard():
         current_days=days
     )
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/laps-editor/<int:strava_id>')
 def laps_editor(strava_id):
     # Fetch the specific activity data
@@ -342,6 +346,7 @@ def laps_editor(strava_id):
                            activity=activity, 
                            laps=laps)
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/admin')
 @login_required
 def admin_dashboard():
@@ -370,10 +375,12 @@ def admin_dashboard():
                            db_size=db_size,
                            table_stats=table_stats)
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/privacy')
 def privacy():
     return render_template('privacy.html')
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/dump')
 @login_required
 def dump():
@@ -388,6 +395,7 @@ def dump():
     
     return render_template('dump.html', markdown_data=markdown_data, days=days)
 
+# --------------------------------------------------------------------------------
 @main_bp.route('/dump-raw')
 @login_required
 def dump_raw():
@@ -403,6 +411,7 @@ def dump_raw():
     # Return raw text directly to the browser
     return Response(markdown_data, mimetype='text/plain')
 
+# --------------------------------------------------------------------------------
 def export_to_csv(data):
     if not data:
         return "No data to export", 400

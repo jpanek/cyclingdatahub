@@ -88,7 +88,7 @@
                         {% endif %}
                     >
                         <td class="ps-3 text-nowrap">
-                            {{ act.start_datetime.strftime('%d %b %Y') if act.start_datetime else '-' }}
+                            {{ act.start_datetime.strftime('%d %b %Y %H:%M') if act.start_datetime else '-' }}
                         </td>
                         <td class="fw-semibold text-truncate" style="max-width: 150px;" title="{{ act.name }}">
                             {% if not act.streams_missing %}
