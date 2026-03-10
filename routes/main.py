@@ -62,11 +62,21 @@ def dashboard():
                            activity_types=activity_types
     )
 
-@main_bp.route('/activity/', defaults={'strava_id': 17196834322})
+@main_bp.route('/activity/', defaults={'strava_id': None})
 @main_bp.route('/activity/<int:strava_id>')
 @login_required
 def activity_detail(strava_id):
     athlete_id = session.get('athlete_id')
+
+    # If no ID is provided, find the latest one dynamically
+    if strava_id is None:
+        from core.queries import SQL_GET_LATEST_ACTIVITY_ID
+        last_act_data = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
+        if last_act_data:
+            strava_id = last_act_data[0]['strava_id']
+        else:
+            return "No activities found for this user.", 404
+        
     results = run_query(SQL_ACTIVITY_DETAILS, (strava_id,))
 
     if not results:
