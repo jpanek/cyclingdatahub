@@ -17,6 +17,16 @@
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-276LSBNXPT"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-276LSBNXPT');
+    </script>
+
     <script defer src="https://cloud.umami.is/script.js" data-website-id="258fefa6-58a0-48ee-8528-bf1d979d9ddb"></script>
     
     {% block head %}{% endblock %}
