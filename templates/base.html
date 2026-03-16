@@ -23,8 +23,19 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-
-        gtag('config', 'G-276LSBNXPT');
+    
+        {% if session.get('athlete_id') %}
+            gtag('set', 'user_properties', {
+                'athlete_type': '{{ session.get("athlete_type", "cyclist") }}'
+            });
+    
+            gtag('config', 'G-276LSBNXPT', {
+                'user_id': '{{ session.get("athlete_id") }}'
+            });
+        {% else %}
+            // If not logged in, just do the standard setup
+            gtag('config', 'G-276LSBNXPT');
+        {% endif %}
     </script>
 
     <script defer src="https://cloud.umami.is/script.js" data-website-id="258fefa6-58a0-48ee-8528-bf1d979d9ddb"></script>
