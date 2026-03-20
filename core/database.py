@@ -80,6 +80,22 @@ def run_query(query, params=None):
     finally:
         conn.close()
 
+def get_db_zone_for_value(category, value):
+    """
+    Fetches the zone name, description, and color for a specific metric value.
+    Works for 'tsb', and eventually 'power' or 'hr'.
+    """
+    query = """
+        SELECT zone_name, description, color_code 
+        FROM training_zones 
+        WHERE category = %s 
+          AND %s >= min_val AND %s < max_val
+        LIMIT 1
+    """
+    # We pass value twice for the min/max check
+    res = run_query(query, (category, value, value))
+    return res[0] if res else None
+
 def get_db_all_athletes():
     data = run_query("select * from users order by 1")
     return data
@@ -491,3 +507,16 @@ def db_mark_streams_missing(strava_id):
     """Marks an activity as having no streams to prevent crawler loops."""
     sql = "UPDATE activities SET streams_missing = TRUE WHERE strava_id = %s"
     run_query(sql, (strava_id,))
+
+def get_athlete_ftp(athlete_id):
+    """Returns the best available FTP for an athlete."""
+    if not athlete_id:
+        return 200
+        
+    sql = "SELECT manual_ftp, detected_ftp FROM users WHERE athlete_id = %s"
+    res = run_query(sql, (athlete_id,))
+    
+    if res:
+        # Priority logic: Manual -> Detected -> Default
+        return res[0].get('manual_ftp') or res[0].get('detected_ftp') or 200
+    return 200

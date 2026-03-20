@@ -101,7 +101,8 @@ ORDER BY activity_count DESC;
 """
 
 SQL_GET_USER_NAME = """
-SELECT firstname, lastname FROM users WHERE athlete_id = %s;
+SELECT firstname, lastname, manual_ftp, detected_ftp
+FROM users WHERE athlete_id = %s;
 """
 
 SQL_GET_USER_SETTINGS = """

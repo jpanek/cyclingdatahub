@@ -8,7 +8,7 @@ from flask import (
 )
 from datetime import datetime, timedelta
 from config import LOG_PATH
-from core.database import run_query
+from core.database import run_query, get_db_zone_for_value, get_athlete_ftp
 from core.analysis import get_best_power_curve, get_performance_summary, get_zone_descriptions
 from routes.auth import login_required
 from core.processor import format_activities_to_markdown
@@ -140,12 +140,27 @@ def activity_detail(strava_id):
     best_curve = get_best_power_curve(athlete_id, months=12)
 
     fitness_sql = """
-        SELECT ctl, atl, tsb 
+        SELECT date, ctl, atl, tsb 
         FROM athlete_daily_metrics 
-        WHERE athlete_id = %s AND date = %s::date
+        WHERE athlete_id = %s 
+          AND date <= %s::date
+        ORDER BY date DESC
+        LIMIT 2
     """
     fitness_res = run_query(fitness_sql, (athlete_id, activity['start_date_local']))
-    fitness_data = fitness_res[0] if fitness_res else None
+    
+    fitness_data = fitness_res[0] if len(fitness_res) > 0 else {}
+    yesterday_data = fitness_res[1] if len(fitness_res) > 1 else None
+
+    current_tsb = fitness_data.get('tsb')
+    tsb_zone = get_db_zone_for_value('tsb',current_tsb)
+
+    # Calculate deltas
+    deltas = {}
+    if yesterday_data:
+        for metric in ['ctl', 'atl', 'tsb']:
+            if fitness_data.get(metric) is not None and yesterday_data.get(metric) is not None:
+                deltas[metric] = fitness_data[metric] - yesterday_data[metric]
 
     zone_ranges = get_zone_descriptions(
         activity.get('baseline_ftp'), 
@@ -160,6 +175,8 @@ def activity_detail(strava_id):
         best_power=best_curve,
         recent_activities=recent_activities,
         fitness=fitness_data,
+        fitness_deltas=deltas,
+        tsb_zone=tsb_zone,
         zone_ranges=zone_ranges,
         laps=laps
     )
@@ -299,28 +316,123 @@ def settings():
 @login_required
 def fitness_dashboard():
     athlete_id = session.get('athlete_id')
-    days = request.args.get('days', default=90, type=int)
+    days = request.args.get('days', default=30, type=int)
     
-    # Use ::float to prevent Decimal issues
+    # 1. Fetch historical metrics including ACWR
     sql = """
         SELECT 
             to_char(date, 'YYYY-MM-DD') as d,
             round(tss::numeric, 1)::float as tss,
             round(ctl::numeric, 1)::float as ctl,
             round(atl::numeric, 1)::float as atl,
-            round(tsb::numeric, 1)::float as tsb
+            round(tsb::numeric, 1)::float as tsb,
+            CASE 
+                WHEN ctl > 0 THEN round((atl / ctl)::numeric, 2)::float 
+                ELSE 0 
+            END as acwr
         FROM athlete_daily_metrics
         WHERE athlete_id = %s
         ORDER BY date DESC
         LIMIT %s
     """
     rows = run_query(sql, (athlete_id, days))
-    rows.reverse() 
+    rows.reverse() # Chronological order for the chart
+
+    # 2. Fetch Training Zones (TSB and ACWR)
+    tsb_zones = run_query("""
+        SELECT zone_name, min_val, max_val, description, color_code 
+        FROM training_zones 
+        WHERE category = 'tsb' 
+        ORDER BY min_val DESC
+    """)
+    
+    acwr_zones = run_query("""
+        SELECT zone_name, min_val, max_val, color_code 
+        FROM training_zones 
+        WHERE category = 'acwr'
+    """)
+
+    # 3. Calculate Insights for the "Pro" Tiles
+    latest = rows[-1] if rows else None
+    ramp_rate = 0
+    days_to_fresh = 0
+    acwr_color = "secondary"
+    acwr_status = "Unknown"
+
+    if latest:
+        # 7-Day Fitness Ramp
+        if len(rows) >= 8:
+            ramp_rate = round(latest['ctl'] - rows[-8]['ctl'], 1)
+        
+        # Estimate days to recovery (TSB > 0)
+        if latest['tsb'] < 0:
+            days_to_fresh = max(1, round(abs(latest['tsb']) / 6))
+
+        # Determine ACWR styling from DB zones
+        for zone in acwr_zones:
+            if zone['min_val'] <= latest['acwr'] <= zone['max_val']:
+                acwr_color = zone['color_code']
+                acwr_status = zone['zone_name']
+                break
+    
+    #Time in zones:
+    power_zones_meta = run_query("""
+        SELECT zone_name, color_code, description, zone_no, min_val, max_val
+        FROM training_zones 
+        WHERE category = 'power' 
+        ORDER BY zone_no ASC
+    """)
+    tiz_parts = ", ".join([f"SUM((power_tiz->>'{z['zone_name']}')::int) as {z['zone_name']}" for z in power_zones_meta])
+    sql_tiz = f"""
+        SELECT {tiz_parts}
+        FROM activity_analytics aa
+        JOIN activities a ON aa.strava_id = a.strava_id
+        WHERE a.athlete_id = %s 
+          AND a.start_date_local >= (CURRENT_DATE - INTERVAL '{days} days')
+          AND a.device_watts = true
+    """
+    tiz_data = run_query(sql_tiz, (athlete_id,))[0]
+    normalized_tiz = {k.lower(): v for k, v in tiz_data.items()}
+    total_seconds = sum(filter(None, normalized_tiz.values())) or 1
+
+    distribution_data = []
+
+    ftp = get_athlete_ftp(athlete_id)
+
+    for zone in power_zones_meta:
+        # Use lowercase for the lookup key
+        lookup_key = zone['zone_name'].lower() 
+        seconds = normalized_tiz.get(lookup_key) or 0
+        
+        # Get min/max percentage from DB (e.g., 0.55, 0.75)
+        z_min_pct = zone.get('min_val') or 0
+        z_max_pct = zone.get('max_val') or 0
+        
+        # Calculate absolute watts
+        watts_min = int(ftp * z_min_pct)
+        watts_max = int(ftp * z_max_pct)
+
+        distribution_data.append({
+            "label": zone['zone_name'], # Keep 'Z1' for the UI
+            "description": zone['description'],
+            "color": zone['color_code'],
+            "percent": round((seconds / total_seconds) * 100, 1),
+            "hours": round(seconds / 3600, 1),
+            "range": f"{watts_min}W - {watts_max}W"
+        })
 
     return render_template(
         'fitness.html',
-        fitness_json=json.dumps(rows), # Ensure this variable matches the template
-        current_days=days
+        fitness_json=json.dumps(rows),
+        tsb_zones=tsb_zones,
+        current_days=days,
+        ramp_rate=ramp_rate,
+        latest=latest,
+        days_to_fresh=days_to_fresh,
+        acwr_color=acwr_color,
+        acwr_status=acwr_status,
+        distribution_json=json.dumps(distribution_data),
+        dist_data_list=distribution_data,
     )
 
 # --------------------------------------------------------------------------------

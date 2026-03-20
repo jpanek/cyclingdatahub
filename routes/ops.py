@@ -48,7 +48,8 @@ def inject_globals():
         return dict(
             current_user_name="Guest",
             current_athlete_id=None,
-            last_activity_id=None
+            last_activity_id=None,
+            current_ftp = 200
         )
     
     from core.queries import (
@@ -59,7 +60,14 @@ def inject_globals():
 
     # 1. Get User Name for the specific logged-in athlete
     user_data = run_query(SQL_GET_USER_NAME, (athlete_id,))
-    name = user_data[0]['firstname'] if user_data else "Athlete"
+    if user_data:
+        row = user_data[0]
+        name = row['firstname']
+        # Priority: Manual -> Detected -> Default
+        ftp = row.get('manual_ftp') or row.get('detected_ftp') or 200
+    else:
+        name = "Athlete"
+        ftp = 200
     
     # 2. Get Last Activity ID for the specific logged-in athlete
     last_act_data = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
@@ -77,6 +85,7 @@ def inject_globals():
     return dict(
         current_user_name=name,
         current_athlete_id=athlete_id,
+        current_ftp=ftp,
         last_activity_id=last_id,
         total_activity_count=total_activity_count,
         total_streams_count=total_streams_count

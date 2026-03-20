@@ -131,7 +131,25 @@ def run_sync(athlete_id, athlete_name="Athlete"):
 
             from config import NEW_USER_STREAMS_LOAD_COUNT
 
-            activities_to_process = activities[:NEW_USER_STREAMS_LOAD_COUNT] if is_new_user else activities
+
+            # -------------------- make sure that new user gets 90 days of streams data hisotry ------------------------
+            from dateutil import parser # Strava dates are ISO8601 strings
+
+            if is_new_user:
+                # 1. Define 90-day window
+                stabilization_cutoff = datetime.now() - timedelta(days=90)
+                
+                activities_to_process = []
+                for a in all_activities:
+                    # Parse the Strava string into a Python datetime
+                    ride_date = parser.parse(a['start_date_local']).replace(tzinfo=None)
+                    
+                    if ride_date >= stabilization_cutoff:
+                        activities_to_process.append(a)
+                
+                print(f"\tNew user stabilization: Processing {len(activities_to_process)} activities from the last 90 days.")
+            else:
+                activities_to_process = all_activities
 
             # ------------------------ Fetch Activity streams (details) -----------------------
             if not REFRESH_HISTORY or is_new_user:

@@ -8,21 +8,37 @@ import config
 def get_zone_descriptions(active_ftp, active_max_hr):
     """
     Calculates absolute min/max values for Power and HR zones.
-    Returns a dict formatted for template tooltips.
+    Now pulls definitions from the database instead of config.py.
     """
     active_ftp = active_ftp or config.DEFAULT_FTP
     active_max_hr = active_max_hr or config.DEFAULT_MAX_HR
     
-    return {
-        'power': [
-            {"name": n, "min": int(active_ftp * low), "max": int(active_ftp * high)}
-            for n, low, high in config.POWER_ZONES
-        ],
-        'hr': [
-            {"name": n, "min": int(active_max_hr * low), "max": int(active_max_hr * high)}
-            for n, low, high in config.HR_ZONES
-        ]
-    }
+    # 1. Fetch all percentage-based zones from the DB
+    sql = """
+        SELECT category, zone_name, min_val, max_val 
+        FROM training_zones 
+        WHERE is_percentage = TRUE 
+        ORDER BY category, zone_no
+    """
+    db_zones = run_query(sql)
+    
+    # 2. Reconstruct the dictionary format your template expects
+    output = {'power': [], 'hr': []}
+    
+    for z in db_zones:
+        # Determine if we multiply by FTP or Max HR
+        basis = active_ftp if z['category'] == 'power' else active_max_hr
+        
+        z_data = {
+            "name": z['zone_name'],
+            "min": int(basis * float(z['min_val'])),
+            "max": int(basis * float(z['max_val']))
+        }
+        
+        if z['category'] in output:
+            output[z['category']].append(z_data)
+            
+    return output
 
 def sync_daily_fitness(athlete_id, start_date):
     """
@@ -272,23 +288,33 @@ def get_performance_summary(athlete_id, months_limit=12):
         'recent_peaks': recent_peaks
     }
 
-def calculate_time_in_zones(series, baseline, zone_config):
+def calculate_time_in_zones(series, baseline, category):
     """
-    series: list/array of data points (1 sec interval)
-    baseline: FTP (for power) or Max HR (for heart rate)
-    zone_config: list of tuples (Name, Min%, Max%)
+    Calculates time spent in each zone by fetching definitions from the DB.
+    category: 'power' or 'hr'
     """
     if not series or not baseline:
         return {}
 
+    # Fetch zones for this category from the DB
+    sql = """
+        SELECT zone_name, min_val, max_val 
+        FROM training_zones 
+        WHERE category = %s AND is_percentage = TRUE 
+        ORDER BY zone_no
+    """
+    zones = run_query(sql, (category,))
+    
     series = np.array(series)
     tiz = {}
     
-    for name, min_pct, max_pct in zone_config:
-        lower = baseline * min_pct
-        upper = baseline * max_pct
-        # Count seconds where data is between lower and upper bounds
+    for z in zones:
+        # Use the boundaries from the DB relative to the baseline
+        lower = baseline * float(z['min_val'])
+        upper = baseline * float(z['max_val'])
+        
+        # Standard "Lower inclusive, Upper exclusive" logic
         seconds = int(np.sum((series >= lower) & (series < upper)))
-        tiz[name] = seconds
+        tiz[z['zone_name']] = seconds
         
     return tiz

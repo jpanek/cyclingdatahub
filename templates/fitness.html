@@ -2,7 +2,7 @@
 
 {% extends "base.html" %}
 
-{% block title %}Form & Fitness | Cycling Stats{% endblock %}
+{% block title %}Form & Training | Cycling Stats{% endblock %}
 
 {% block content %}
 <style>
@@ -22,9 +22,48 @@
 
     /* Tooltip styling for better readability */
     .tooltip-inner { text-align: left !important; padding: 10px !important; }
+
+    /* 1. Make the tooltip container wider */
+    .tooltip-inner { 
+        text-align: left !important; 
+        padding: 12px !important; 
+        max-width: 350px !important; /* Increased from 250px */
+    }
+
+    /* 2. Prevent the zone lines from breaking into two lines */
+    .tsb-zone-row {
+        white-space: nowrap;
+        display: block;
+    }
+
+    /* This ensures the row's columns are the same height */
+    .equal-height-row {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .equal-height-row > [class*='col-'] {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .equal-height-row .card {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-body-chart {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Prevents chart from blowing out the container */
+    }
 </style>
 
 <div class="container mt-4">
+
+    <!-- History picker -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
             <h2 class="mb-0">Form & Fitness</h2>
@@ -37,6 +76,53 @@
         </div>
     </div>
 
+    <!-- Training insights -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column justify-content-between" style="border-radius: 12px; background: #f8f9fa;">
+                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Current Status</small>
+                <div class="mt-auto d-flex align-items-baseline">
+                    <h4 class="mb-0 fw-bold" id="status-label">Analyzing...</h4>
+                    {% if days_to_fresh > 0 %}
+                    <span class="text-muted ms-2" style="font-size: 0.75rem; letter-spacing: 0.3px;">
+                        &middot; {{ days_to_fresh }}d to Fresh
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column justify-content-between" style="border-radius: 12px; background: #f8f9fa;">
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Workload Ratio (ACWR)</small>
+                    <svg class="info-icon" data-bs-toggle="tooltip" title="Current Status: {{ acwr_status }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <div class="mt-auto">
+                    <h4 class="mb-0 fw-bold text-{{ acwr_color }}">{{ latest.acwr }}</h4>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-{{ acwr_color }}" 
+                             role="progressbar" 
+                             style="width: {{ [((latest.acwr / 2) * 100), 100]|min }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column justify-content-between" style="border-radius: 12px; background: #f8f9fa;">
+                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">7D Fitness Ramp</small>
+                <div class="mt-auto">
+                    <h4 class="mb-0 fw-bold {{ 'text-success' if 2 <= ramp_rate <= 8 else 'text-warning' if ramp_rate > 8 else 'text-muted' }}">
+                        {{ '+' if ramp_rate > 0 }}{{ ramp_rate }} 
+                        <span class="small text-muted" style="font-size: 0.9rem;">pts/week</span>
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
     <div class="card shadow-sm mb-4 border-0" style="border-radius: 15px;">
         <div class="card-body">
             <div style="height: 400px; position: relative;">
@@ -45,6 +131,7 @@
         </div>
     </div>
 
+    <!-- Current training metrics -->
     <div class="row">
         <div class="col-md-4 mb-3">
             <div class="card card-stat shadow-sm text-center p-3 h-100">
@@ -52,7 +139,7 @@
                     <span class="text-uppercase text-muted small font-weight-bold">Fitness (CTL)</span>
                     <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Chronic Training Load</b><br>42-day rolling stress average.<br>• 50-80: Solid Base<br>• 100+: Peak Performance" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                 </div>
-                <h2 class="text-primary text-value mb-0" id="stat-ctl">-</h2>
+                <h2 class="text-dark text-value mb-0" id="stat-ctl">-</h2>
             </div>
         </div>
         <div class="col-md-4 mb-3">
@@ -61,22 +148,82 @@
                     <span class="text-uppercase text-muted small font-weight-bold">Fatigue (ATL)</span>
                     <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Acute Training Load</b><br>7-day rolling stress average.<br>Shows your immediate fatigue levels." viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                 </div>
-                <h2 class="text-warning text-value mb-0" id="stat-atl">-</h2>
+                <h2 class="text-dark text-value mb-0" id="stat-atl">-</h2>
             </div>
         </div>
+
+        <!-- Form (TSB) -->
         <div class="col-md-4 mb-3">
             <div class="card card-stat shadow-sm text-center p-3 h-100">
                 <div class="mb-1">
                     <span class="text-uppercase text-muted small font-weight-bold">Form (TSB)</span>
-                    <svg class="info-icon" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Training Stress Balance</b><br>CTL minus ATL.<br>• +5 to +20: Fresh (Race Ready)<br>• -10 to -30: Training Zone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <svg class="info-icon" 
+                         data-bs-toggle="tooltip" 
+                         data-bs-html="true" 
+                         title="<b>Training Stress Balance</b><br>
+                                CTL minus ATL.<br><br>
+                                {% for zone in tsb_zones %}
+                                • {{ zone.zone_name }}: {{ zone.min_val|int if zone.min_val > -900 else '-∞' }} to {{ zone.max_val|int if zone.max_val < 900 else '+∞' }}<br>
+                                {% endfor %}" 
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
                 </div>
                 <h2 class="text-value mb-0" id="stat-tsb">-</h2>
             </div>
         </div>
+
     </div>
+
+    <!-- Zone Distribution -->
+    <div class="row mb-4 equal-height-row">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 15px;">
+                <div class="card-body card-body-chart">
+                    <h6 class="text-muted text-uppercase fw-bold mb-3" style="font-size: 0.75rem;">Intensity Distribution ({{ current_days }}D)</h6>
+                    <div style="position: relative; flex-grow: 1;">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 15px;">
+                <div class="card-body p-0">
+                    <div class="p-3 pb-2">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.75rem;">Zone Breakdown</h6>
+                    </div>
+                    <table class="table table-borderless table-sm mb-0" style="font-size: 0.82rem;">
+                        <tbody>
+                            {% for d in dist_data_list %}
+                            <tr class="border-bottom" 
+                                data-bs-toggle="tooltip" 
+                                data-bs-placement="left" 
+                                title="Range: {{ d.range }}">
+                                <td class="ps-3 py-2">
+                                    <span class="badge bg-{{ d.color }} me-1" style="width: 7px; height: 7px; padding: 0; border-radius: 50%; display: inline-block;"></span>
+                                    <span class="fw-bold">{{ d.label }}</span>
+                                    <span class="text-muted ms-1" style="font-size: 0.65rem;">{{ d.description }}</span>
+                                </td>
+                                <td class="text-end py-2 align-middle">{{ d.hours }}h</td>
+                                <td class="text-end pe-3 py-2 align-middle fw-bold">{{ d.percent }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Chart here -->
 <script>
     // 1. Initialize Tooltips using Vanilla JS (Bootstrap 5)
     document.addEventListener('DOMContentLoaded', function () {
@@ -88,20 +235,47 @@
 
     // 2. Load Data from Flask
     const raw = {{ fitness_json | safe }};
-    
-    if (raw && raw.length > 0) {
-        const latest = raw[raw.length - 1];
+        const zones = {{ tsb_zones | tojson | safe }}; // Pass zones to JS
         
-        // Update Tiles
-        document.getElementById('stat-ctl').innerText = Math.round(latest.ctl);
-        document.getElementById('stat-atl').innerText = Math.round(latest.atl);
-        document.getElementById('stat-tsb').innerText = Math.round(latest.tsb);
-        
-        // Dynamic Coloring for TSB
-        const tsbEl = document.getElementById('stat-tsb');
-        if (latest.tsb > 5) tsbEl.style.color = '#4caf50';
-        else if (latest.tsb < -25) tsbEl.style.color = '#e91e63';
-        else tsbEl.style.color = '#00bcd4';
+        if (raw && raw.length > 0) {
+            const latest = raw[raw.length - 1];
+            const tsbValue = Math.round(latest.tsb);
+            
+            // Update Tiles
+            document.getElementById('stat-ctl').innerText = Math.round(latest.ctl);
+            document.getElementById('stat-atl').innerText = Math.round(latest.atl);
+            document.getElementById('stat-tsb').innerText = tsbValue;
+            
+            // --- PROFESSIONAL STATUS LOGIC ---
+            const statusLabel = document.getElementById('status-label');
+            const tsbEl = document.getElementById('stat-tsb');
+            let currentZoneName = "Unknown";
+            let colorCode = "secondary"; // Default
+
+            // Match TSB to DB Zones
+            for (const zone of zones) {
+                // Adjusting for tuple access if run_query returns tuples (index 1 is min, 2 is max)
+                // If run_query returns dicts, use zone.min_val and zone.max_val
+                const min = zone.min_val ?? zone[1];
+                const max = zone.max_val ?? zone[2];
+                const name = zone.zone_name ?? zone[0];
+                const code = zone.color_code ?? zone[4];
+
+                if (tsbValue >= min && tsbValue <= max) {
+                    currentZoneName = name;
+                    colorCode = code;
+                    break;
+                }
+            }
+
+            // Apply dynamic classes/colors
+            if (statusLabel) {
+                statusLabel.innerText = currentZoneName;
+                statusLabel.className = `mb-0 fw-bold text-${colorCode}`;
+            }
+            
+            // Color the main TSB number too
+            tsbEl.className = `text-value mb-0 text-${colorCode}`;
 
         // 3. Render Chart
         new Chart(document.getElementById('fitnessChart'), {
@@ -112,7 +286,8 @@
                         type: 'line', 
                         label: 'CTL (Fitness)', 
                         data: raw.map(d => d.ctl), 
-                        borderColor: '#2196F3', // Strong Blue
+                        borderColor: '#1e3a8a', // Deep Navy Blue
+                        backgroundColor: '#1e3a8a',
                         borderWidth: 3, 
                         pointRadius: 0, 
                         tension: 0.4, 
@@ -123,9 +298,9 @@
                         type: 'line', 
                         label: 'ATL (Fatigue)', 
                         data: raw.map(d => d.atl), 
-                        borderColor: '#ced4da', // Muted Gray
-                        borderWidth: 2.5, 
-                        borderDash: [5, 5], 
+                        borderColor: '#94a3b8', // Muted Steel Gray/Blue
+                        borderDash: [5, 5], // Keeps it dashed to distinguish from Fitness
+                        borderWidth: 2,
                         pointRadius: 0, 
                         tension: 0.4, 
                         yAxisID: 'y',
@@ -135,12 +310,12 @@
                         type: 'line', 
                         label: 'TSB (Form)', 
                         data: raw.map(d => d.tsb), 
-                        borderColor: '#6c757d', // Neutral Gray line
-                        borderWidth: 1, 
+                        borderColor: 'rgba(71, 85, 105, 0.4)', // Muted Slate
+                        borderWidth: 1.5, 
                         fill: {
                             target: 'origin',
-                            above: 'rgba(40, 167, 69, 0.15)', // Success Green (Fresh)
-                            below: 'rgba(220, 53, 69, 0.15)'  // Danger Red (Tired)
+                            above: 'rgba(148, 163, 184, 0.1)', // Subtle Slate fill
+                            below: 'rgba(148, 163, 184, 0.1)'  // Same subtle fill
                         }, 
                         pointRadius: 0, 
                         tension: 0.4, 
@@ -231,6 +406,71 @@
         });
     } else {
         console.error("No fitness data found to display.");
+    }
+</script>
+
+<!-- Zone distibution chart -->
+<script>
+    const distData = {{ distribution_json | safe }};
+
+    // Map Bootstrap-style color codes to hex for Chart.js
+    const colorMap = {
+        'secondary': '#6c757d',
+        'success': '#198754',
+        'info': '#0dcaf0',
+        'warning': '#ffc107',
+        'danger': '#dc3545'
+    };
+
+    if (distData && distData.length > 0) {
+        new Chart(document.getElementById('distributionChart'), {
+            type: 'bar',
+            data: {
+                labels: distData.map(d => d.label),
+                datasets: [{
+                    data: distData.map(d => d.percent),
+                    backgroundColor: distData.map(d => colorMap[d.color] || d.color),
+                    borderRadius: 4,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Horizontal Layout
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#000',
+                        bodyColor: '#666',
+                        borderColor: '#e9ecef',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            title: function(context) {
+                                // Returns "Z4 - Lactate Threshold" as the title
+                                const d = distData[context[0].dataIndex];
+                                return `${d.label}: ${d.description}`;
+                            },
+                            label: function(ctx) {
+                                const d = distData[ctx.dataIndex];
+                                // Returns "12.5% (4.2h) | Range: 270W - 315W"
+                                return ` ${d.percent}% (${d.hours}h) | Range: ${d.range}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        //max: 100, 
+                        grid: { display: false },
+                        ticks: { callback: v => v + '%' } 
+                    },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
     }
 </script>
 {% endblock %}

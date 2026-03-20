@@ -408,30 +408,69 @@
     <div class="row mt-4">
         <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header bg-white fw-bold">Daily Fitness Snapshot (EOD)</div>
+                <div class="card-header bg-white py-2">
+                    <span class="fw-bold text-dark">EOD Fitness</span>
+                    <span class="text-muted fw-normal ms-2" style="font-size: 0.85rem;">(∆ vs. yesterday)</span>
+                </div>
                 <div class="card-body">
                     <a href="{{ url_for('main.fitness_dashboard') }}" class="stretched-link"></a>
 
+                    <!-- Fitness (CTL) -->
                     <div class="row text-center">
                         <div class="col-4">
-                            <label class="text-muted d-block small fw-bold text-uppercase">Fitness (CTL)</label>
-                            <span class="fs-4 fw-bold text-primary">{{ fitness.ctl or '---' }}</span>
+                            <label class="text-muted d-block small fw-bold text-uppercase mb-1">Fitness (CTL)</label>
+                            <div class="d-flex align-items-baseline justify-content-center">
+                                <span class="fs-4 fw-bold text-dark">{{ "%.1f"|format(fitness.ctl or 0.0) }}</span>
+                                {% if fitness_deltas.ctl is defined and fitness_deltas.ctl != 0 %}
+                                    <span class="small text-muted fw-semibold ms-2" style="font-size: 0.8rem;">
+                                        ({{ "+" if fitness_deltas.ctl > 0 }}{{ "%.1f"|format(fitness_deltas.ctl) }})
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
+                    
+                        <!-- Fatigue (ATL) -->
                         <div class="col-4 border-start">
-                            <label class="text-muted d-block small fw-bold text-uppercase">Fatigue (ATL)</label>
-                            <span class="fs-4 fw-bold text-danger">{{ fitness.atl or '---' }}</span>
+                            <label class="text-muted d-block small fw-bold text-uppercase mb-1">Fatigue (ATL)</label>
+                            <div class="d-flex align-items-baseline justify-content-center">
+                                <span class="fs-4 fw-bold text-dark">{{ "%.1f"|format(fitness.atl or 0.0) }}</span>
+                                {% if fitness_deltas.atl is defined and fitness_deltas.atl != 0 %}
+                                    <span class="small text-muted fw-semibold ms-2" style="font-size: 0.8rem;">
+                                        ({{ "+" if fitness_deltas.atl > 0 }}{{ "%.1f"|format(fitness_deltas.atl) }})
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
+                    
+                        <!-- Form TSB -->
                         <div class="col-4 border-start">
-                            <label class="text-muted d-block small fw-bold text-uppercase">Form (TSB)</label>
-                            <span class="fs-4 fw-bold {% if fitness.tsb and fitness.tsb < -20 %}text-danger{% elif fitness.tsb and fitness.tsb > 5 %}text-success{% else %}text-dark{% endif %}">
-                                {{ fitness.tsb or '---' }}
-                            </span>
+                            <label class="text-muted d-block small fw-bold text-uppercase mb-1">Form (TSB)</label>
+                            <div class="d-flex align-items-baseline justify-content-center">
+                        
+                                <span class="fs-4 fw-bold text-{{ tsb_zone.color_code if tsb_zone else 'dark' }}"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top"
+                                    title="{{ tsb_zone.zone_name }}: {{ tsb_zone.description }}"
+                                    style="cursor: help; position: relative; z-index: 10;">
+                                    {{ "%.1f"|format(fitness.tsb or 0.0) }}
+                                </span>
+                        
+                                {% if fitness_deltas.tsb is defined and fitness_deltas.tsb != 0 %}
+                                    <span class="small text-muted fw-semibold ms-2" style="font-size: 0.8rem;">
+                                        ({{ "+" if fitness_deltas.tsb > 0 }}{{ "%.1f"|format(fitness_deltas.tsb) }})
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
+
                     </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Chart: Power Curve -->
     <div class="card shadow-sm p-3 mt-4">
@@ -454,7 +493,10 @@
     </div>
 
 </div>
+{% endblock %}
 
+
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -792,12 +834,14 @@
     }
 </script>
 
-<!-- Event listeners -->
+<!-- Event listeners and tooltips -->
 <script>
     // Wait for the DOM and Bootstrap to be fully ready
     document.addEventListener('DOMContentLoaded', function () {
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
     });
 </script>
 

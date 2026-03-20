@@ -241,8 +241,8 @@ def process_activity_metrics(strava_id, force=False):
         active_ftp, active_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
 
     # 4b. Calculate time spent in zones:
-    power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, config.POWER_ZONES) if has_power else {}
-    hr_tiz = calculate_time_in_zones(streams['heartrate_series'], active_hr, config.HR_ZONES) if has_hr else {}
+    power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, 'power') if has_power else {}
+    hr_tiz = calculate_time_in_zones(streams['heartrate_series'], active_hr, 'hr') if has_hr else {}
 
     # 5. Training Load & Scoring
     avg_pwr = np.mean(streams['watts_series']) if has_power else 0
