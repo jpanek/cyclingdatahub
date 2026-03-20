@@ -7,7 +7,8 @@ from core.analysis import (
     get_interval_bests, 
     calculate_vam,
     calculate_aerobic_decoupling,
-    calculate_time_in_zones
+    calculate_time_in_zones,
+    classify_ride
 )
 import numpy as np
 from psycopg2.extras import Json
@@ -80,10 +81,10 @@ def get_athlete_context(strava_id):
     """Fetches user settings and activity metadata."""
     sql = """
         SELECT a.athlete_id, a.type, a.start_date_local, a.strava_id,
-               a.moving_time, a.elapsed_time,
-               u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
-               u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
-               u.manual_ftp_updated_at
+            a.moving_time, a.elapsed_time, a.distance, a.total_elevation_gain, -- Added these
+            u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
+            u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
+            u.manual_ftp_updated_at
         FROM activities a 
         JOIN users u ON u.athlete_id = a.athlete_id 
         WHERE a.strava_id = %s
@@ -268,18 +269,14 @@ def process_activity_metrics(strava_id, force=False):
     else:
         if_score, tss_score = 0, 0
 
-    if False:
-        #debugging 
-        print("--- TRUTH BLOCK ---")
-        print(f"Has Power: {has_power}")
-        print(f"Hours: {duration_sec / 3600}")
-        print(f"IF: {if_score}")
-        print(f"IF Squared: {if_score ** 2}")
-    
-        calculated_manually = (duration_sec / 3600) * (if_score ** 2) * 100
-        print(f"Manual Calc: {calculated_manually}")
-        print(f"Variable tss_score: {tss_score}")
-        print("-------------------")
+    ride_label = classify_ride({
+        'if_score': if_score,
+        'vi_score': vi_score,
+        'duration_sec': duration_sec,
+        'power_tiz': power_tiz,
+        'distance_m': context.get('distance', 0),
+        'elevation_gain': context.get('total_elevation_gain', 0)
+    })
 
 
     # 6. Power Curve Generation
@@ -297,9 +294,9 @@ def process_activity_metrics(strava_id, force=False):
         weighted_avg_power, baseline_ftp, baseline_max_hr, max_vam, aerobic_decoupling,
         variability_index, efficiency_factor, intensity_score, 
         training_stress_score, power_curve, 
-        power_tiz, hr_tiz,
+        power_tiz, hr_tiz, classification,
         updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         weighted_avg_power = EXCLUDED.weighted_avg_power,
         baseline_ftp = EXCLUDED.baseline_ftp,
@@ -309,6 +306,7 @@ def process_activity_metrics(strava_id, force=False):
         power_curve = EXCLUDED.power_curve,
         power_tiz = EXCLUDED.power_tiz,
         hr_tiz = EXCLUDED.hr_tiz,
+        classification = EXCLUDED.classification,
         updated_at = NOW();
     """
     
@@ -320,7 +318,7 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
         weighted_pwr, active_ftp, active_hr, vam_val, decoupling_val,
         vi_score, ef_score, if_score, tss_score, Json(curve_json),
-        Json(power_tiz), Json(hr_tiz)
+        Json(power_tiz), Json(hr_tiz), ride_label
     ))
 
     return True

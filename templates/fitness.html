@@ -177,6 +177,95 @@
 
     </div>
 
+    <!-- Training Timeline Strip -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 p-3 d-flex justify-content-between align-items-center" 
+            role="button" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#trainingTimeline" 
+            aria-expanded="false" 
+            aria-controls="trainingTimeline"
+            style="cursor: pointer;">
+            
+            <div class="d-flex align-items-center flex-grow-1">
+                <h6 class="fw-bold mb-0 text-uppercase small text-muted" style="letter-spacing: 1px;">
+                    <i class="bi bi-calendar3 me-2"></i> {{ current_days }}-Day Activity Timeline
+                </h6>
+                
+                <!-- Mini Sparkline: Visualizes load distribution at a glance -->
+                <div class="d-none d-md-flex align-items-end gap-1 ms-4 me-3" style="height: 20px;">
+                    {% set max_tss = recent_activities|map(attribute='tss')|max or 100 %}
+                    {% for act in recent_activities %}
+                        <div title="{{ act.name }}: {{ act.tss }} TSS"
+                            style="width: 3px; 
+                                    height: {{ [((act.tss / max_tss) * 100), 10]|max|round }}%; 
+                                    background-color: {{ act.accent_color }};
+                                    opacity: 0.6;
+                                    border-radius: 1px;">
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <span class="badge bg-light text-dark ms-2 border fw-normal d-none d-sm-inline-block">
+                    {{ recent_activities|length }} Activities
+                </span>
+            </div>
+            
+            <div class="text-muted small text-end flex-shrink-0">
+                <span class="me-2">Avg: <b>{{ (recent_activities|sum(attribute='tss') / current_days)|round(1) }}</b> TSS/day</span>
+                <i class="bi bi-chevron-down ms-2"></i>
+            </div>
+        </div>
+
+        <div class="collapse" id="trainingTimeline">
+            <div class="card-body pt-0 px-3 pb-3">
+                <!-- flex-row-reverse + |reverse filter starts scroll at the newest activity (right side) -->
+                <div class="d-flex flex-row-reverse justify-content-start overflow-auto gap-2 pb-2" 
+                    style="scrollbar-width: thin; -webkit-overflow-scrolling: touch;">
+                    
+                    {% for act in recent_activities|reverse %}
+                    <a href="/activity/{{ act.strava_id }}" class="text-decoration-none">
+
+                        <div class="flex-shrink-0 border rounded bg-white shadow-sm" 
+                            style="width: 125px; border-left: 4px solid {{ act.accent_color }} !important;">
+                            
+                            <div class="px-2 py-1 border-bottom d-flex justify-content-between align-items-center bg-light-subtle">
+                                <span class="fw-bold text-dark" style="font-size: 0.7rem;">{{ act.date_short }}</span>
+                                <span class="text-muted" style="font-size: 0.6rem;">{{ act.day_name | upper }}</span>
+                            </div>
+
+                            <div class="p-2">
+                                <div class="mb-1">
+                                    <span class="h5 fw-bold text-dark mb-0">{{ act.tss }}</span>
+                                    <span class="text-muted" style="font-size: 0.65rem;">TSS</span>
+                                </div>
+                                
+                                <div class="fw-bold text-truncate mb-2" 
+                                    style="color: {{ act.accent_color }}; font-size: 0.65rem; letter-spacing: 0.5px;">
+                                    <i class="bi {{ act.icon_class }} me-1" style="font-size: 0.6rem;"></i>
+                                    {{ act.class_label }}
+                                </div>
+
+                                <div class="d-flex justify-content-between border-top pt-1 text-muted" style="font-size: 0.6rem;">
+                                    <span>IF <b>{{ act.if_score }}</b></span>
+                                    <span>VI <b>{{ act.vi }}</b></span>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </a>
+                    {% endfor %}
+                    
+                    <!-- Historical Indicator -->
+                    <div class="flex-shrink-0 d-flex align-items-center px-3 text-muted" style="font-size: 0.65rem; font-style: italic;">
+                        <i class="bi bi-arrow-left me-1"></i> HISTORY
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Zone Distribution -->
     <div class="row mb-4 equal-height-row">
         <div class="col-md-6 mb-3 mb-md-0">

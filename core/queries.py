@@ -143,10 +143,15 @@ SELECT
     a.map_polyline,
     s.altitude_series,
     an.power_tiz, an.hr_tiz,
-    a.resource_state
+    a.resource_state,
+    cm.display_name as class_label,
+    cm.accent_color,
+    cm.bg_color,
+    cm.icon_class
 FROM activities a
 JOIN activity_streams s ON a.strava_id = s.strava_id
 LEFT JOIN activity_analytics an ON a.strava_id = an.strava_id
+LEFT JOIN activity_classification_meta cm ON an.classification = cm.slug
 WHERE a.strava_id = %s;
 """
 

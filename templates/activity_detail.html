@@ -58,6 +58,16 @@
                 <span class="badge rounded-pill bg-light text-dark border" style="flex-shrink: 0;">
                     {{ activity.type }}
                 </span>
+
+                {% if activity.class_label %}
+                <span class="badge rounded-pill border shadow-sm" 
+                      style="background-color: {{ activity.bg_color }};
+                             color: {{ activity.accent_color }};
+                             border-color: currentColor !important;">
+                    <i class="bi {{ activity.icon_class }} me-1"></i> {{ activity.class_label }}
+                </span>
+                {% endif %}
+                
             </div>
 
             <div>

@@ -166,7 +166,7 @@ def activity_detail(strava_id):
         activity.get('baseline_ftp'), 
         activity.get('baseline_max_hr')
     )
-        
+
     return render_template(
         'activity_detail.html', 
         activity=activity, 
@@ -421,6 +421,28 @@ def fitness_dashboard():
             "range": f"{watts_min}W - {watts_max}W"
         })
 
+    # 4. Fetch Recent Activity Feed (Timeline Version)
+    sql_recent = """
+        SELECT 
+            a.strava_id, a.name,
+            to_char(a.start_date_local, 'DD/MM') as date_short,
+            to_char(a.start_date_local, 'Dy') as day_name,
+            COALESCE(cm.display_name, 'MIXED') as class_label,
+            cm.accent_color,
+            cm.bg_color,
+            cm.icon_class,
+            round(aa.intensity_score::numeric, 2) as if_score,
+            round(aa.variability_index::numeric, 2) as vi,
+            round(aa.training_stress_score::numeric, 0) as tss
+        FROM activities a
+        JOIN activity_analytics aa ON a.strava_id = aa.strava_id
+        LEFT JOIN activity_classification_meta cm ON aa.classification = cm.slug
+        WHERE a.athlete_id = %s 
+        AND a.start_date_local >= (CURRENT_DATE - INTERVAL '%s days')
+        ORDER BY a.start_date_local ASC
+    """
+    recent_activities = run_query(sql_recent, (athlete_id, days))
+
     return render_template(
         'fitness.html',
         fitness_json=json.dumps(rows),
@@ -433,6 +455,7 @@ def fitness_dashboard():
         acwr_status=acwr_status,
         distribution_json=json.dumps(distribution_data),
         dist_data_list=distribution_data,
+        recent_activities=recent_activities
     )
 
 # --------------------------------------------------------------------------------
