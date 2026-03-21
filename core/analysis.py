@@ -321,7 +321,8 @@ def calculate_time_in_zones(series, baseline, category):
 
 def classify_ride(metrics):
     """
-    Categorizes a ride and returns a SLUG for database storage.
+    Categorizes a ride based on physiological impact (Power/Intensity/Variability).
+    No longer uses destination-based logic (Commutes).
     """
     duration_sec = metrics.get('duration_sec', 0)
     duration_min = duration_sec / 60
@@ -334,47 +335,40 @@ def classify_ride(metrics):
     def get_p(zone):
         return (float(tiz.get(zone, 0) or 0) / duration_sec) * 100
 
-    p_z1 = get_p('Z1')
-    p_z2 = get_p('Z2')
+    p_z1, p_z2 = get_p('Z1'), get_p('Z2')
     p_z34 = get_p('Z3') + get_p('Z4')
     p_high = get_p('Z5') + get_p('Z6') + get_p('Z7')
     
-    # Elevation Context (Meters per KM)
     dist_km = (metrics.get('distance_m', 0) / 1000.0)
     m_per_km = metrics.get('elevation_gain', 0) / dist_km if dist_km > 0 else 0
     
     if_val = metrics.get('if_score', 0)
-    # Default to 1.0 (steady) if missing, so it doesn't break Endurance rules
     vi = metrics.get('vi_score', 1.0) 
 
-    # 2. Hierarchical Classification (Slugs)
+    # 2. Hierarchical Classification (Training POV)
     
-    # Rule: Commute / Very Short
-    if duration_min < 45:
-        return "commute"
-
-    # Rule: Intervals (High Intensity)
+    # High Intensity / Work Capacity
     if p_high > 12 or (p_high > 8 and if_val > 0.80):
         return "intervals"
 
-    # Rule: Recovery
+    # Active Recovery (Low metabolic cost, high Z1)
     if if_val < 0.58 and p_z1 > 40:
         return "recovery"
 
-    # Rule: Threshold / TT
+    # Sustainable Intensity (Threshold & SweetSpot)
     if if_val >= 0.82 and vi < 1.05:
         return "threshold_tt"
-
-    # Rule: Tempo / SS
+    
     if 0.75 <= if_val <= 0.88 and p_z34 > 35 and vi < 1.05:
         return "tempo_ss"
 
-    # Rule: Endurance (Z2 Dominance)
+    # Aerobic Base (Z2 Dominance)
     if p_z2 > 40 and vi < 1.10:
         return "long_endurance" if duration_min > 180 else "steady_endurance"
 
-    # Rule: Hilly / Punchy (Using the m_per_km we already calculated)
+    # Mechanical/Structural Load (Climbing or Surges)
     if vi >= 1.12 or m_per_km > 15:
         return "punchy_race" if if_val > 0.75 else "hilly_aerobic"
     
+    # Catch-all for unstructured movement
     return "mixed_general"
