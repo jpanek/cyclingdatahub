@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm border-0 text-center p-5">
+        <div class="card-body">
+            <h1 class="display-4 text-danger">Oops!</h1>
+            <p class="lead">{{ message or "Something went wrong." }}</p>
+            <p class="text-muted">Error Code: {{ code }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
