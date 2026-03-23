@@ -75,12 +75,12 @@ def activity_detail(strava_id):
         if last_act_data:
             strava_id = last_act_data[0]['strava_id']
         else:
-            return "No activities found for this user.", 404
+            abort(404, description="No activities found for your profile.")
         
     results = run_query(SQL_ACTIVITY_DETAILS, (strava_id,))
 
     if not results:
-        return "Activity details not found.", 404
+        abort(404, description=f"Activity details for ID {strava_id} not found.")
     activity = results[0] if results else None
 
     #0. Get the laps:
