@@ -140,6 +140,8 @@ SELECT
     an.variability_index, an.efficiency_factor, an.intensity_score,
     an.training_stress_score,
     an.power_curve,
+    an.hr_curve,
+    an.cadence_curve,
     a.map_polyline,
     s.altitude_series,
     an.power_tiz, an.hr_tiz,

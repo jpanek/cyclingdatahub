@@ -191,7 +191,7 @@ def process_activity_metrics(strava_id, force=False):
     
     # 1. Validation & Data Fetching
     stream_data = run_query(
-        "SELECT watts_series, heartrate_series, altitude_series, time_series FROM activity_streams WHERE strava_id = %s", 
+        "SELECT watts_series, heartrate_series, altitude_series, time_series, cadence_series FROM activity_streams WHERE strava_id = %s", 
         (strava_id,)
     )
     
@@ -221,7 +221,8 @@ def process_activity_metrics(strava_id, force=False):
         'watts_series': stream_data[0]['watts_series'],
         'heartrate_series': stream_data[0]['heartrate_series'],
         'altitude_series': stream_data[0]['altitude_series'],
-        'time_series': stream_data[0]['time_series']
+        'time_series': stream_data[0]['time_series'],
+        'cadence_series': stream_data[0]['cadence_series']
     }
 
 
@@ -280,11 +281,15 @@ def process_activity_metrics(strava_id, force=False):
 
 
     # 6. Power Curve Generation
-    curve_json = {}
-    if has_power:
-        curve_durations = {str(d): d for d in [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600]}
-        detailed_curve = get_interval_bests(streams, intervals=curve_durations)
-        curve_json = {k.replace('peak_power_', ''): v for k, v in detailed_curve.items() if 'peak_power_' in k and v is not None}
+    power_curve, hr_curve, cadence_curve = {}, {}, {}
+    #if has_power:
+    curve_durations = {str(d): d for d in [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600]}
+    detailed_curve = get_interval_bests(streams, intervals=curve_durations)
+
+    power_curve = {k.replace('peak_power_', ''): v for k, v in detailed_curve.items() if 'peak_power_' in k and v is not None}
+    hr_curve = {k.replace('peak_hr_', ''): v for k, v in detailed_curve.items() if 'peak_hr_' in k and v is not None}
+    cadence_curve = {k.replace('peak_cadence_', ''): v for k, v in detailed_curve.items() if 'peak_cadence_' in k and v is not None}
+
 
     # 7. Database Persistence
     sql_save = """
@@ -293,10 +298,10 @@ def process_activity_metrics(strava_id, force=False):
         peak_5s_hr, peak_1m_hr, peak_5m_hr, peak_20m_hr,
         weighted_avg_power, baseline_ftp, baseline_max_hr, max_vam, aerobic_decoupling,
         variability_index, efficiency_factor, intensity_score, 
-        training_stress_score, power_curve, 
+        training_stress_score, power_curve, hr_curve, cadence_curve,
         power_tiz, hr_tiz, classification,
         updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         weighted_avg_power = EXCLUDED.weighted_avg_power,
         baseline_ftp = EXCLUDED.baseline_ftp,
@@ -304,6 +309,8 @@ def process_activity_metrics(strava_id, force=False):
         intensity_score = EXCLUDED.intensity_score,
         training_stress_score = EXCLUDED.training_stress_score,
         power_curve = EXCLUDED.power_curve,
+        hr_curve = EXCLUDED.hr_curve,
+        cadence_curve = EXCLUDED.cadence_curve,
         power_tiz = EXCLUDED.power_tiz,
         hr_tiz = EXCLUDED.hr_tiz,
         classification = EXCLUDED.classification,
@@ -317,7 +324,7 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_hr_5s'), bests.get('peak_hr_1m'), 
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
         weighted_pwr, active_ftp, active_hr, vam_val, decoupling_val,
-        vi_score, ef_score, if_score, tss_score, Json(curve_json),
+        vi_score, ef_score, if_score, tss_score, Json(power_curve), Json(hr_curve), Json(cadence_curve),
         Json(power_tiz), Json(hr_tiz), ride_label
     ))
 

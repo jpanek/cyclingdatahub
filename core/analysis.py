@@ -120,6 +120,7 @@ def get_interval_bests(activity_data, intervals=None):
 
     watts = np.array(activity_data.get('watts_series') or [])
     hr = np.array(activity_data.get('heartrate_series') or [])
+    cadence = np.array(activity_data.get('cadence_series') or [])
     
     results = {}
     for label, seconds in intervals.items():
@@ -130,12 +131,19 @@ def get_interval_bests(activity_data, intervals=None):
         else:
             results[f'peak_power_{label}'] = None
             
-        # 2. Calculate Peak HR independently (This was the missing piece!)
+        # 2. Calculate Peak HR independently
         if hr.size >= seconds:
             rolling_hr = np.convolve(hr, np.ones(seconds)/seconds, mode='valid')
             results[f'peak_hr_{label}'] = int(round(np.max(rolling_hr)))
         else:
             results[f'peak_hr_{label}'] = None
+
+        # 3. Calculate Peak Cadence independently
+        if cadence.size >= seconds:
+            rolling_cadence = np.convolve(cadence, np.ones(seconds)/seconds, mode='valid')
+            results[f'peak_cadence_{label}'] = int(round(np.max(rolling_cadence)))
+        else:
+            results[f'peak_cadence_{label}'] = None
             
     return results
 
