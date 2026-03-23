@@ -277,9 +277,22 @@ SELECT
     aa.baseline_max_hr as "Baseline_Max_HR",
     aa.aerobic_decoupling as "Decoupling_Pct",
     aa.efficiency_factor as "Efficiency_EF",
+    -- New Fitness Columns
+    fm.ctl as "EOD_CTL",
+    fm.atl as "EOD_ATL",
+    fm.tsb as "EOD_TSB",
     aa.power_curve as "Power_Curve"
 FROM activities t
 LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
+-- The Lateral Join finds the closest fitness record for each activity date
+LEFT JOIN LATERAL (
+    SELECT ctl, atl, tsb
+    FROM athlete_daily_metrics
+    WHERE athlete_id = t.athlete_id
+      AND date <= t.start_date_local::date
+    ORDER BY date DESC
+    LIMIT 1
+) fm ON TRUE
 WHERE t.athlete_id = %s
   AND t.start_date_local >= CURRENT_DATE - INTERVAL %s
 ORDER BY t.start_date_local DESC

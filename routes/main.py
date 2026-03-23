@@ -527,6 +527,7 @@ def dump():
         return render_template('dump.html', markdown_data="No data found.", days=days)
     
     markdown_data = format_activities_to_markdown(rows)
+    print(markdown_data)
     
     return render_template('dump.html', markdown_data=markdown_data, days=days)
 
