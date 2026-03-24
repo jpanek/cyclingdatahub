@@ -548,6 +548,24 @@ def dump_raw():
     return Response(markdown_data, mimetype='text/plain')
 
 # --------------------------------------------------------------------------------
+@main_bp.route('/coach')
+@login_required
+def coach_page():
+    # Instant load
+    return render_template('coach.html')
+
+@main_bp.route('/coach/load')
+def coach_load():
+    athlete_id = session.get('athlete_id')
+    from core.coach import get_coaching_advice
+    
+    # This is the "Slow" AI call
+    advice = get_coaching_advice(athlete_id)
+    
+    # Returns just the card HTML to be swapped in
+    return render_template('coach_content.html', advice=advice)
+
+# --------------------------------------------------------------------------------
 def export_to_csv(data):
     if not data:
         return "No data to export", 400

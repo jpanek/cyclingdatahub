@@ -410,3 +410,37 @@ SQL_TABLE_STATS = """
     FROM pg_catalog.pg_statio_user_tables
     ORDER BY pg_total_relation_size(relid) DESC;
 """
+
+# coach queries:
+
+SQL_GET_COACH_FITNESS_TREND = """
+    SELECT date, ctl, atl, tsb 
+    FROM athlete_daily_metrics 
+    WHERE athlete_id = %s 
+      AND date >= CURRENT_DATE - INTERVAL '14 days'
+    ORDER BY date ASC
+"""
+
+SQL_GET_COACH_RECENT_ACTIVITY_DETAILS = """
+    SELECT 
+        t.start_date_local::date as date,
+        t.name,
+        t.type,
+        ROUND((t.distance / 1000.0)::numeric, 1) as dist_km,
+        (t.moving_time / 60) as dur_min,
+        aa.weighted_avg_power as np,
+        aa.intensity_score as intensity,
+        aa.training_stress_score as tss,
+        aa.aerobic_decoupling as decoupling_pct,
+        aa.efficiency_factor as ef,
+        aa.power_tiz,
+        aa.hr_tiz,
+        aa.peak_20m
+    FROM activities t
+    LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
+    WHERE t.athlete_id = %s
+      AND t.start_date_local >= CURRENT_DATE - INTERVAL '14 days'
+      AND t.strava_id != 17792642743
+      AND t.moving_time > 600 -- Keep the 'noise' filter
+    ORDER BY t.start_date_local DESC
+"""
