@@ -6,6 +6,9 @@
             <h5 class="fw-bold mb-0">Training Assessment</h5>
             <small class="text-muted" style="font-size: 0.85rem;">
                 Based on activity <a href="/activity/{{ advice.referenced_strava_id }}" class="text-muted text-decoration-underline">#{{ advice.referenced_strava_id }}</a>
+                {% if advice.generated_at %}
+                <span class="mx-1">•</span> Analyzed {{ advice.generated_at.strftime('%b %d, %H:%M') }}
+                {% endif %}
             </small>
         </div>
         <div class="text-end">

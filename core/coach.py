@@ -138,21 +138,29 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
 
     latest_strava_id = latest_act_res[0]['strava_id']
 
+    today_date = datetime.now().date()
 
     #2. Check if there is already record in the DB:
     cached_res = run_query(
-        "SELECT advice_json, goal FROM coach_advice WHERE athlete_id = %s AND strava_id = %s ORDER BY generated_at DESC LIMIT 1",
-        (athlete_id, latest_strava_id)
-    )
+            """
+            SELECT advice_json, goal, generated_at
+            FROM coach_advice 
+            WHERE athlete_id = %s 
+            AND strava_id = %s 
+            AND DATE(generated_at) = %s 
+            ORDER BY generated_at DESC LIMIT 1
+            """,
+            (athlete_id, latest_strava_id, today_date)
+        )
     if cached_res:
         advice = cached_res[0]['advice_json']
         saved_goal = cached_res[0].get('goal', 'General Fitness')
         
-        print('Coaching fetched form DB') #-------------------------------
 
         advice_data = json.loads(advice) if isinstance(advice, str) else advice
         advice_data['referenced_strava_id'] = latest_strava_id
         advice_data['goal'] = saved_goal
+        advice_data['generated_at'] = cached_res[0]['generated_at']
         return advice_data
     
     #3. No cached coaching advices, get them from AI:
@@ -184,6 +192,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         )
         advice_data['referenced_strava_id'] = latest_strava_id
         advice_data['goal'] = goal
+        advice_data['generated_at'] = datetime.now()
         return advice_data
 
     except Exception as e:

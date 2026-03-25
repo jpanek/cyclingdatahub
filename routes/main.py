@@ -561,7 +561,7 @@ def coach_page():
     has_cache = False
     if latest_strava_id:
         cached_res = run_query(
-            "SELECT 1 FROM coach_advice WHERE athlete_id = %s AND strava_id = %s LIMIT 1",
+            "SELECT 1 FROM coach_advice WHERE athlete_id = %s AND strava_id = %s and DATE(generated_at) = CURRENT_DATE order by id desc LIMIT 1",
             (athlete_id, latest_strava_id)
         )
         has_cache = bool(cached_res)
@@ -587,12 +587,13 @@ def coach_load():
     advice = get_coaching_advice(athlete_id, goal=goal)
 
     # Debugging loop
+    """
     print(f"--- Debugging Advice Object (Goal: {goal}) ---")
     for key, value in advice.items():
         print(f"Key: {key} | Value Type: {type(value)}")
         if key == 'goal':
             print(f"   >>> Goal confirmed as: {value}")
-
+    """
 
     return render_template('coach_content.html', advice=advice)
 
