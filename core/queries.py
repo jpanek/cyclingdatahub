@@ -433,6 +433,7 @@ SQL_GET_COACH_RECENT_ACTIVITY_DETAILS = """
         aa.training_stress_score as tss,
         aa.aerobic_decoupling as decoupling_pct,
         aa.efficiency_factor as ef,
+        aa.variability_index as vi,
         aa.power_tiz,
         aa.hr_tiz,
         aa.peak_20m

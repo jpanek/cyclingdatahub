@@ -33,10 +33,9 @@ def _strip_zeros(data_dict):
         return data_dict
     return {k: v for k, v in data_dict.items() if v not in [0, 0.0, None, {}]}
 
-def gather_coach_context(athlete_id):
+def gather_coach_context(athlete_id, history_days=14, full_detail_limit=7):
     """
-    Gathers a 14-day training brief including profile, 
-    fitness trends, and detailed activity metrics.
+    Gathers a training brief with optimized integer rounding and metadata context.
     """
     # 1. Get Athlete Profile
     latest_act = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
@@ -51,69 +50,86 @@ def gather_coach_context(athlete_id):
                 "max_hr": raw_context.get('manual_max_hr') or raw_context.get('detected_max_hr')
             }
 
-    # 2. Get Fitness Trend (Daily CTL/ATL/TSB)
+    # 2. Get Fitness Trend
     raw_trend = run_query(SQL_GET_COACH_FITNESS_TREND, (athlete_id,))
     trend_data = [_clean_row(r) for r in raw_trend]
     
-    # Calculate 7-day Ramp Rate (Fitness Acceleration)
     ramp_rate_7d = 0
-    if len(trend_data) >= 7:
-        ramp_rate_7d = round(trend_data[-1]['ctl'] - trend_data[-7]['ctl'], 2)
+    tsb_min_period = 0
+    if trend_data:
+        tsb_min_period = min(r['tsb'] for r in trend_data[-history_days:])
+        if len(trend_data) >= 7:
+            # Keep 1 decimal for ramp rate as 3.1 vs 3.9 is a real difference
+            ramp_rate_7d = round(trend_data[-1]['ctl'] - trend_data[-7]['ctl'], 1)
 
-    # 3. Get Recent Activities (14-day window)
+    # Only send 7 days of daily rows to save tokens
+    short_trend = trend_data[-7:] if len(trend_data) > 7 else trend_data
+
+    # 3. Get Recent Activities
     raw_activities = run_query(SQL_GET_COACH_RECENT_ACTIVITY_DETAILS, (athlete_id,))
     
-    # Calculate Weekly TSS Splits
     today = datetime.now().date()
     seven_days_ago = (today - timedelta(days=7)).isoformat()
+    limit_date = (today - timedelta(days=history_days)).isoformat()
     
     activity_data = []
     this_week_tss = 0
     prev_week_tss = 0
     
-    for r in raw_activities:
+    for i, r in enumerate(raw_activities):
         clean_r = _clean_row(r)
-        tss = clean_r.get('tss') or 0
         act_date_str = clean_r.get('date')
         
-        # Bucket TSS for comparison
+        if act_date_str < limit_date:
+            continue
+
+        tss = clean_r.get('tss') or 0
         if act_date_str >= seven_days_ago:
             this_week_tss += tss
         else:
             prev_week_tss += tss
 
-        # Sanitize the activity payload for the AI
-        activity_data.append({
-            "date": clean_r.get('date'),
+        # Activity Payload
+        act_item = {
+            "date": act_date_str,
             "name": clean_r.get('name'),
             "type": clean_r.get('type'),
-            "dur_min": clean_r.get('dur_min'),
-            "tss": clean_r.get('tss'),
+            "tss": int(round(tss)),
             "intensity": clean_r.get('intensity'),
-            "decoupling_pct": clean_r.get('decoupling_pct'),
-            "ef": clean_r.get('ef'),
-            "vi": clean_r.get('vi'),
-            "peak_20m": clean_r.get('peak_20m'),
-            "power_tiz": _strip_zeros(clean_r.get('power_tiz')),
-            "hr_tiz": _strip_zeros(clean_r.get('hr_tiz'))
-        })
+            "dur_min": clean_r.get('dur_min'),
+        }
 
-    # 4. Final Data Assembly
-    context = {
+        # Add heavy metrics only for the most recent items
+        if i < full_detail_limit:
+            act_item.update({
+                "decoupling_pct": clean_r.get('decoupling_pct'),
+                "ef": clean_r.get('ef'),
+                "vi": clean_r.get('vi'),
+                "power_tiz": _strip_zeros(clean_r.get('power_tiz')),
+                "hr_tiz": _strip_zeros(clean_r.get('hr_tiz'))
+            })
+        
+        activity_data.append(act_item)
+
+    # 4. Final Assembly
+    return {
+        "metadata": {
+            "history_days_analyzed": history_days,
+            "analysis_date": today.isoformat()
+        },
         "athlete_profile": athlete_profile,
         "fitness_summary": {
-            "current_ctl": trend_data[-1]['ctl'] if trend_data else 0,
-            "current_tsb": trend_data[-1]['tsb'] if trend_data else 0,
+            "current_ctl": int(round(trend_data[-1]['ctl'])) if trend_data else 0,
+            "current_tsb": int(round(trend_data[-1]['tsb'])) if trend_data else 0,
+            "tsb_min_in_period": int(round(tsb_min_period)),
             "ramp_rate_7d": ramp_rate_7d,
-            "this_week_tss": round(this_week_tss, 1),
-            "last_week_tss": round(prev_week_tss, 1),
-            "workload_delta_pct": round(((this_week_tss - prev_week_tss) / (prev_week_tss or 1)) * 100, 1)
+            "this_week_total_tss": int(round(this_week_tss)),
+            "prev_week_total_tss": int(round(prev_week_tss)),
+            "workload_delta_pct": int(round(((this_week_tss - prev_week_tss) / (prev_week_tss or 1)) * 100))
         },
-        "fitness_trend_14d": trend_data,
+        "fitness_trend_7d": short_trend,
         "recent_activities": activity_data
     }
-    
-    return context
 
 def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     
