@@ -189,7 +189,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=config.GEMINI_API_MODEL,
             # We tell the model to strictly return JSON
             config={
                 'system_instruction': SYSTEM_INSTRUCTION,

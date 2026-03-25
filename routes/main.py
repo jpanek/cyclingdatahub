@@ -417,7 +417,7 @@ def fitness_dashboard():
             "description": zone['description'],
             "color": zone['color_code'],
             "percent": round((seconds / total_seconds) * 100, 1),
-            "hours": round(seconds / 3600, 1),
+            "seconds": seconds,
             "range": f"{watts_min}W - {watts_max}W"
         })
 

@@ -195,7 +195,7 @@
                 <!-- Mini Sparkline: Visualizes load distribution at a glance -->
                 <div class="d-none d-md-flex align-items-end gap-1 ms-4 me-3" style="height: 20px;">
                     {% set max_tss = recent_activities|map(attribute='tss')|max or 100 %}
-                    {% for act in recent_activities %}
+                    {% for act in recent_activities[:30] %}
                         <div title="{{ act.name }}: {{ act.tss }} TSS"
                             style="width: 3px; 
                                     height: {{ [((act.tss / max_tss) * 100), 10]|max|round }}%; 
@@ -297,7 +297,7 @@
                                     <span class="fw-bold">{{ d.label }}</span>
                                     <span class="text-muted ms-1" style="font-size: 0.65rem;">{{ d.description }}</span>
                                 </td>
-                                <td class="text-end py-2 align-middle">{{ d.hours }}h</td>
+                                <td class="text-end py-2 align-middle">{{ d.seconds | format_seconds }}</td>
                                 <td class="text-end pe-3 py-2 align-middle fw-bold">{{ d.percent }}%</td>
                             </tr>
                             {% endfor %}

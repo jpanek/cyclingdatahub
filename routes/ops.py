@@ -270,3 +270,22 @@ def strava_webhook():
         return "EVENT_RECEIVED", 200
     
     return "Method not allowed", 405
+
+def format_seconds(seconds):
+    """Converts seconds into a concise Hh Mm Ss string."""
+    if not seconds:
+        return "0s"
+    
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    
+    parts = []
+    if h > 0:
+        parts.append(f"{h}h")
+    if m > 0 or h > 0: # Show minutes if hours exist, even if 0 (e.g., 1h 0m 5s)
+        parts.append(f"{m}m")
+    parts.append(f"{s}s")
+    
+    return " ".join(parts)
+

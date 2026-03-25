@@ -362,7 +362,9 @@
                             <div class="mb-3" data-bs-toggle="tooltip" data-bs-title="{{ zone_name }}: {{ ns.range_text }}" style="cursor: help;">
                                 <div class="d-flex justify-content-between small">
                                     <span class="fw-semibold">{{ zone_name }}</span>
-                                    <span class="text-muted">{{ (seconds // 60) }}m {{ (seconds % 60) }}s ({{ percent }}%)</span>
+                                    <span class="text-muted">
+                                        {{ seconds | format_seconds }} ({{ percent }}%)
+                                    </span>
                                 </div>
                                 <div class="progress" style="height: 10px;">
                                     {# Using shades of blue (primary) with increasing opacity per zone #}
@@ -400,7 +402,9 @@
                             <div class="mb-3" data-bs-toggle="tooltip" data-bs-title="{{ zone_name }}: {{ ns_hr.range_text }}" style="cursor: help;">
                                 <div class="d-flex justify-content-between small">
                                     <span class="fw-semibold">{{ zone_name }}</span>
-                                    <span class="text-muted">{{ (seconds // 60) }}m ({{ percent }}%)</span>
+                                    <span class="text-muted">
+                                        {{ seconds | format_seconds }} ({{ percent }}%)
+                                    </span>
                                 </div>
                                 <div class="progress" style="height: 10px;">
                                     <div class="progress-bar bg-danger" role="progressbar" 
