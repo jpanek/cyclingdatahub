@@ -1,23 +1,25 @@
-<div class="d-flex justify-content-between align-items-center mb-3 px-1">
-    <div>
-        <h5 class="fw-bold mb-0">Training Assessment</h5>
-        <small class="text-muted" style="font-size: 0.85rem;">
-            Based on activity <a href="/activity/{{ advice.referenced_strava_id }}" class="text-muted text-decoration-underline">#{{ advice.referenced_strava_id }}</a>
-        </small>
+<!-- templates/coach_content.html -->
+
+<div class="mb-3 px-1">
+    <div class="d-flex justify-content-between align-items-end">
+        <div>
+            <h5 class="fw-bold mb-0">Training Assessment</h5>
+            <small class="text-muted" style="font-size: 0.85rem;">
+                Based on activity <a href="/activity/{{ advice.referenced_strava_id }}" class="text-muted text-decoration-underline">#{{ advice.referenced_strava_id }}</a>
+            </small>
+        </div>
+        <div class="text-end">
+            <span class="badge border text-dark font-monospace fw-normal" 
+               style="font-size: 0.85rem; background-color: #e1eedd; border-color: #c3d9bc !important;">
+                GOAL: {{ advice.goal | upper }}
+            </span>
+        </div>
     </div>
-    {% if advice.metrics_flagged %}
-    <div class="d-flex gap-2">
-        {% for tag in advice.metrics_flagged %}
-        <span class="text-muted font-monospace" style="font-size: 0.65rem; font-weight: 400;">
-            #{{ tag.replace('_', '') | upper }}
-        </span>
-        {% endfor %}
-    </div>
-    {% endif %}
 </div>
 
 <div class="card border shadow-sm mb-3">
     <div class="card-body p-3">
+        
         <div class="mb-3">
             <p class="text-muted fw-bold text-uppercase mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Current Status</p>
             <div class="bg-light p-2 px-3 rounded border">
@@ -43,6 +45,16 @@
         <div>
             <p class="text-muted fw-bold text-uppercase mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Training suggestions</p>
             <div class="row g-2">
+                {% if advice.recommendation.long_term_gap %}
+                <div class="col-12">
+                    <div class="bg-light p-2 px-3 rounded border">
+                        <small class="text-muted fw-bold d-block mb-1" style="font-size: 0.8rem;">STRATEGIC GAP</small>
+                        <p class="mb-0 text-dark font-monospace" style="font-size: 0.8rem;">
+                            > {{ advice.recommendation.long_term_gap }}
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="col-12">
                     <div class="bg-light p-2 px-3 rounded border">
                         <small class="text-muted fw-bold d-block mb-1" style="font-size: 0.8rem;">TARGET</small>
@@ -59,3 +71,13 @@
         </div>
     </div>
 </div>
+
+{% if advice.metrics_flagged %}
+<div class="d-flex flex-wrap gap-2 px-2 opacity-85 mb-3">
+    {% for tag in advice.metrics_flagged %}
+    <span class="text-muted font-monospace" style="font-size: 0.85rem; font-weight: 400;">
+        #{{ tag.replace('_', '') | upper }}
+    </span>
+    {% endfor %}
+</div>
+{% endif %}

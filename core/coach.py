@@ -115,7 +115,7 @@ def gather_coach_context(athlete_id):
     
     return context
 
-def get_coaching_advice(athlete_id, debug=False):
+def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     
     if debug:
             print('Debug output only, not running fetch')
@@ -141,23 +141,27 @@ def get_coaching_advice(athlete_id, debug=False):
 
     #2. Check if there is already record in the DB:
     cached_res = run_query(
-        "SELECT advice_json FROM coach_advice WHERE athlete_id = %s AND strava_id = %s ORDER BY generated_at DESC LIMIT 1",
+        "SELECT advice_json, goal FROM coach_advice WHERE athlete_id = %s AND strava_id = %s ORDER BY generated_at DESC LIMIT 1",
         (athlete_id, latest_strava_id)
     )
     if cached_res:
         advice = cached_res[0]['advice_json']
+        saved_goal = cached_res[0].get('goal', 'General Fitness')
         
         print('Coaching fetched form DB') #-------------------------------
 
         advice_data = json.loads(advice) if isinstance(advice, str) else advice
         advice_data['referenced_strava_id'] = latest_strava_id
+        advice_data['goal'] = saved_goal
         return advice_data
     
     #3. No cached coaching advices, get them from AI:
     print('Coaching fetched form Google Gemini') #-------------------------------
     context = gather_coach_context(athlete_id)
+    context['current_goal'] = goal
+
     client = genai.Client(api_key=config.GEMINI_API_KEY)
-    prompt = f"Athlete Context: {json.dumps(context)}"
+    prompt = f"User Current Goal: {goal}\n\nAthlete Data Context: {json.dumps(context)}"
 
     try:
         response = client.models.generate_content(
@@ -175,10 +179,11 @@ def get_coaching_advice(athlete_id, debug=False):
 
         # save it to db
         run_query(
-            "INSERT INTO coach_advice (athlete_id, strava_id, advice_json) VALUES (%s, %s, %s)",
-            (athlete_id, latest_strava_id, json.dumps(advice_data))
+            "INSERT INTO coach_advice (athlete_id, strava_id, advice_json, goal) VALUES (%s, %s, %s, %s)",
+            (athlete_id, latest_strava_id, json.dumps(advice_data), goal)
         )
         advice_data['referenced_strava_id'] = latest_strava_id
+        advice_data['goal'] = goal
         return advice_data
 
     except Exception as e:
@@ -187,6 +192,10 @@ def get_coaching_advice(athlete_id, debug=False):
             "referenced_strava_id": latest_strava_id,
             "status": "Coach is currently offline.",
             "insights": [str(e)],
-            "recommendation": {"target": "No available", "alternative": "Not available"},
+            "recommendation": {
+                "target": "No available", 
+                "alternative": "Not available",
+                "long_term_gap": "Analysis unavailable."
+                },
             "metrics_flagged": []
         }

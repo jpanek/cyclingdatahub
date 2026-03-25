@@ -25,7 +25,8 @@ from core.queries import (
     SQL_ADMIN_OVERVIEW, 
     SQL_ADMIN_CRAWLER_ACTIVITIES_BACKLOG, 
     SQL_ADMIN_CRAWLER_ANALYTICS_BACKLOG,
-    SQL_DB_SIZE, SQL_TABLE_STATS
+    SQL_DB_SIZE, SQL_TABLE_STATS,
+    SQL_GET_LATEST_ACTIVITY_ID
 )
 
 main_bp = Blueprint('main', __name__)
@@ -70,7 +71,6 @@ def activity_detail(strava_id):
 
     # If no ID is provided, find the latest one dynamically
     if strava_id is None:
-        from core.queries import SQL_GET_LATEST_ACTIVITY_ID
         last_act_data = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
         if last_act_data:
             strava_id = last_act_data[0]['strava_id']
@@ -551,18 +551,49 @@ def dump_raw():
 @main_bp.route('/coach')
 @login_required
 def coach_page():
-    # Instant load
-    return render_template('coach.html')
+    athlete_id = session.get('athlete_id')
+    
+    # 1. Get the latest activity ID
+    latest_act_res = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
+    latest_strava_id = latest_act_res[0]['strava_id'] if latest_act_res else None
+
+    # 2. Check if we already have advice for this activity
+    has_cache = False
+    if latest_strava_id:
+        cached_res = run_query(
+            "SELECT 1 FROM coach_advice WHERE athlete_id = %s AND strava_id = %s LIMIT 1",
+            (athlete_id, latest_strava_id)
+        )
+        has_cache = bool(cached_res)
+    
+    # 3. Get the last used goal to pre-select in the UI
+    last_goal_res = run_query(
+        "SELECT goal FROM coach_advice WHERE athlete_id = %s ORDER BY generated_at DESC LIMIT 1",
+        (athlete_id,)
+    )
+    last_goal = last_goal_res[0]['goal'] if last_goal_res else 'General Fitness'
+
+    # 3. Pass the 'has_cache' flag to the template
+    return render_template('coach.html', has_cache=has_cache, last_goal=last_goal)
 
 @main_bp.route('/coach/load')
+@login_required
 def coach_load():
     athlete_id = session.get('athlete_id')
+    # Get goal from query params, default to General Fitness
+    goal = request.args.get('goal', 'General Fitness')
+    
     from core.coach import get_coaching_advice
-    
-    # This is the "Slow" AI call
-    advice = get_coaching_advice(athlete_id)
-    
-    # Returns just the card HTML to be swapped in
+    advice = get_coaching_advice(athlete_id, goal=goal)
+
+    # Debugging loop
+    print(f"--- Debugging Advice Object (Goal: {goal}) ---")
+    for key, value in advice.items():
+        print(f"Key: {key} | Value Type: {type(value)}")
+        if key == 'goal':
+            print(f"   >>> Goal confirmed as: {value}")
+
+
     return render_template('coach_content.html', advice=advice)
 
 # --------------------------------------------------------------------------------
