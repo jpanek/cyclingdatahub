@@ -14,6 +14,9 @@ from routes.auth import login_required
 from datetime import datetime
 from core.processor import run_delayed_delete_recalc
 
+SUDO_PATH = "/usr/bin/sudo"
+SYSTEMCTL_PATH = "/usr/bin/systemctl"
+
 ops_bp = Blueprint('ops', __name__)
 
 @ops_bp.before_app_request
@@ -96,17 +99,16 @@ def is_vps():
     return platform.system()=="Linux"
 
 def get_jupyter_status():
-    """Checks if the Jupyter service is actually running."""
     if not is_vps():
         return False
     try:
+        # Using absolute paths here makes it 100% predictable
         result = subprocess.run(
-            ['sudo', 'systemctl', 'is-active', 'jupyter_cycling_stats'], 
+            [SUDO_PATH, SYSTEMCTL_PATH, 'is-active', 'jupyter_cycling_stats'], 
             capture_output=True, 
             text=True
         )
-        status = result.stdout.strip()
-        return status == "active"
+        return result.stdout.strip() == "active"
     except Exception:
         return False
 
@@ -114,16 +116,18 @@ def get_jupyter_status():
 @login_required
 def manage_jupyter(action):
     if action not in ['start', 'stop']:
-        flash("Invalid action", "danger")
         return redirect(url_for('admin.dashboard'))
+
     if is_vps():
-            try:
-                subprocess.run(['sudo', 'systemctl', action, 'jupyter_cycling_stats'], check=True)
-                flash(f"Jupyter Lab {action}ed!", "success")
-            except Exception as e:
-                flash(f"Failed to {action} Jupyter: {str(e)}", "danger")
+        try:
+            # We pass the full path to the list
+            subprocess.run([SUDO_PATH, SYSTEMCTL_PATH, action, 'jupyter_cycling_stats'], check=True)
+            flash(f"Jupyter Lab {action}ed!", "success")
+        except Exception as e:
+            # This will now tell us if it's a permission error or a path error
+            flash(f"System Error: {str(e)}", "danger")
     else:
-            flash(f"Simulation: Jupyter {action}ed (No-op on Mac)", "info")
+        flash(f"Mac detected. Simulated {action}.", "info")
 
     return redirect(url_for('admin.dashboard'))
 
