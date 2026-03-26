@@ -92,15 +92,13 @@ def inject_globals():
     )
 
 def is_vps():
-    return False
+    import platform
+    return platform.system()=="Linux"
 
 def get_jupyter_status():
     """Checks if the Jupyter service is actually running."""
-    import platform
-
     if not is_vps():
-        return platform.system()=="Linux"
-    
+        return False
     try:
         result = subprocess.run(
             ['sudo', 'systemctl', 'is-active', 'jupyter_cycling_stats'], 
