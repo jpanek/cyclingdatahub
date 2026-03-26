@@ -116,7 +116,7 @@ def get_jupyter_status():
 @login_required
 def manage_jupyter(action):
     if action not in ['start', 'stop']:
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
 
     if is_vps():
         try:
@@ -129,7 +129,7 @@ def manage_jupyter(action):
     else:
         flash(f"Mac detected. Simulated {action}.", "info")
 
-    return redirect(url_for('admin.dashboard'))
+    return redirect(url_for('main.admin_dashboard'))
 
 @ops_bp.route('/laps/merge', methods=['POST'])
 def api_merge_laps():
