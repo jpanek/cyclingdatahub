@@ -91,6 +91,44 @@ def inject_globals():
         total_streams_count=total_streams_count
     )
 
+def is_vps():
+    return False
+
+def get_jupyter_status():
+    """Checks if the Jupyter service is actually running."""
+    import platform
+
+    if not is_vps():
+        return platform.system()=="Linux"
+    
+    try:
+        # 'is-active' returns 'active' or 'unknown'/'inactive'
+        result = subprocess.run(
+            ['sudo', 'systemctl', 'is-active', 'jupyter_cycling_stats'], 
+            capture_output=True, 
+            text=True
+        )
+        return result.stdout.strip() == "active"
+    except Exception:
+        return False
+
+@ops_bp.route('/admin/jupyter/<action>')
+@login_required
+def manage_jupyter(action):
+    if action not in ['start', 'stop']:
+        flash("Invalid action", "danger")
+        return redirect(url_for('admin.dashboard'))
+    if is_vps():
+            try:
+                subprocess.run(['sudo', 'systemctl', action, 'jupyter_cycling_stats'], check=True)
+                flash(f"Jupyter Lab {action}ed!", "success")
+            except Exception as e:
+                flash(f"Failed to {action} Jupyter: {str(e)}", "danger")
+    else:
+            flash(f"Simulation: Jupyter {action}ed (No-op on Mac)", "info")
+
+    return redirect(url_for('admin.dashboard'))
+
 @ops_bp.route('/laps/merge', methods=['POST'])
 def api_merge_laps():
     data = request.json

@@ -501,6 +501,9 @@ def admin_dashboard():
     db_size_res = run_query(SQL_DB_SIZE)
     db_size = db_size_res[0]['total_db_size'] if db_size_res else "N/A"
     table_stats = run_query(SQL_TABLE_STATS)
+
+    from routes.ops import get_jupyter_status
+    is_active = get_jupyter_status()
     
     return render_template('admin_overview.html', 
                            overview=overview, 
@@ -508,7 +511,9 @@ def admin_dashboard():
                            analytics=analytics,
                            history_days=history_days,
                            db_size=db_size,
-                           table_stats=table_stats)
+                           table_stats=table_stats,
+                           jupyter_active=is_active
+                           )
 
 # --------------------------------------------------------------------------------
 @main_bp.route('/privacy')
