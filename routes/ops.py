@@ -102,13 +102,13 @@ def get_jupyter_status():
         return platform.system()=="Linux"
     
     try:
-        # 'is-active' returns 'active' or 'unknown'/'inactive'
         result = subprocess.run(
             ['sudo', 'systemctl', 'is-active', 'jupyter_cycling_stats'], 
             capture_output=True, 
             text=True
         )
-        return result.stdout.strip() == "active"
+        status = result.stdout.strip()
+        return status == "active"
     except Exception:
         return False
 
