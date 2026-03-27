@@ -399,6 +399,8 @@ def fitness_dashboard():
 
     ftp = get_athlete_ftp(athlete_id)
 
+    from routes.ops import format_seconds
+
     for zone in power_zones_meta:
         # Use lowercase for the lookup key
         lookup_key = zone['zone_name'].lower() 
@@ -418,6 +420,7 @@ def fitness_dashboard():
             "color": zone['color_code'],
             "percent": round((seconds / total_seconds) * 100, 1),
             "seconds": seconds,
+            "formatted_time": format_seconds(seconds),
             "range": f"{watts_min}W - {watts_max}W"
         })
 
@@ -442,6 +445,7 @@ def fitness_dashboard():
         ORDER BY a.start_date_local ASC
     """
     recent_activities = run_query(sql_recent, (athlete_id, days))
+
 
     return render_template(
         'fitness.html',

@@ -65,9 +65,11 @@
 
     <!-- History picker -->
     <div class="d-flex justify-content-between align-items-end mb-4">
+        
         <div>
-            <h2 class="mb-0">Form & Fitness</h2>
+            <h2 class="mb-0">Form & Training</h2>
         </div>
+
         <div class="btn-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
             <a href="?days=30" class="btn btn-sm btn-subtle {{ 'active' if current_days == 30 }}">30D</a>
             <a href="?days=90" class="btn btn-sm btn-subtle {{ 'active' if current_days == 90 }}">90D</a>
@@ -96,7 +98,17 @@
             <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column justify-content-between" style="border-radius: 12px; background: #f8f9fa;">
                 <div class="d-flex justify-content-between">
                     <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Workload Ratio (ACWR)</small>
-                    <svg class="info-icon" data-bs-toggle="tooltip" title="Current Status: {{ acwr_status }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <svg class="info-icon" 
+                        data-bs-toggle="tooltip" 
+                        data-bs-html="true"
+                        title="<b>Acute Chronic Workload Ratio</b>
+                        <br>Compares your 7-day load vs 28-day average
+                        <br>Current Status: {{ acwr_status }}"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
                 </div>
                 <div class="mt-auto">
                     <h4 class="mb-0 fw-bold text-{{ acwr_color }}">{{ latest.acwr }}</h4>
@@ -111,7 +123,18 @@
     
         <div class="col-md-4">
             <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column justify-content-between" style="border-radius: 12px; background: #f8f9fa;">
-                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">7D Fitness Ramp</small>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">7D Fitness Ramp</small>
+                    <svg class="info-icon" 
+                         data-bs-toggle="tooltip" 
+                         data-bs-html="true" 
+                         title="<b>Weekly Ramp Rate</b><br>The change in CTL over the last 7 days.<br>• 0-2: Maintenance<br>• 3-5: Productive<br>• 6-8: Aggressive<br>• 8+: Risk of injury" 
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </div>
                 <div class="mt-auto">
                     <h4 class="mb-0 fw-bold {{ 'text-success' if 2 <= ramp_rate <= 8 else 'text-warning' if ramp_rate > 8 else 'text-muted' }}">
                         {{ '+' if ramp_rate > 0 }}{{ ramp_rate }} 
@@ -545,7 +568,7 @@
                             label: function(ctx) {
                                 const d = distData[ctx.dataIndex];
                                 // Returns "12.5% (4.2h) | Range: 270W - 315W"
-                                return ` ${d.percent}% (${d.hours}h) | Range: ${d.range}`;
+                                return ` ${d.percent}% (${d.formatted_time}) | Range: ${d.range}`;
                             }
                         }
                     }
