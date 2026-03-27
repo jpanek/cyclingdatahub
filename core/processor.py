@@ -80,11 +80,12 @@ def format_activities_to_markdown(rows):
 def get_athlete_context(strava_id):
     """Fetches user settings and activity metadata."""
     sql = """
-        SELECT a.athlete_id, a.type, a.start_date_local, a.strava_id,
-            a.moving_time, a.elapsed_time, a.distance, a.total_elevation_gain, -- Added these
+        SELECT 
+            a.athlete_id, a.type, a.start_date_local, a.strava_id,
+            a.moving_time, a.elapsed_time, a.distance, a.total_elevation_gain,
             u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
             u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
-            u.manual_ftp_updated_at
+            u.manual_ftp_updated_at, u.manual_max_hr_updated_at
         FROM activities a 
         JOIN users u ON u.athlete_id = a.athlete_id 
         WHERE a.strava_id = %s
@@ -235,12 +236,23 @@ def process_activity_metrics(strava_id, force=False):
     ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if (has_power and bests.get('peak_power_20m')) else 0
     current_max_hr = int(max(streams['heartrate_series'])) if (has_hr and len(streams['heartrate_series']) > 0) else 0
 
-    # 4. Fitness Baseline Resolution
+    # 4.1 FTP Baseline resolution
+    adaptive_ftp, adaptive_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
+
     if context['manual_ftp'] and context['manual_ftp_updated_at'] and ride_date >= context['manual_ftp_updated_at']:
         active_ftp = context['manual_ftp']
-        active_hr = context['manual_max_hr'] or context['detected_max_hr'] or config.DEFAULT_MAX_HR
+        #print(f"FTP: Manual ({active_ftp}W)")
     else:
-        active_ftp, active_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
+        active_ftp = adaptive_ftp
+        #print(f"FTP: Calculated ({active_ftp}W)")
+    
+    # 4.2 Max HR Baseline resolution
+    if context['manual_max_hr'] and context['manual_max_hr_updated_at'] and ride_date >= context['manual_max_hr_updated_at']:
+        active_hr = context['manual_max_hr']
+        #print(f"HR: Manual ({active_hr}bpm)")
+    else:
+        active_hr = adaptive_hr
+        #print(f"HR: Calculated ({active_hr})")
 
     # 4b. Calculate time spent in zones:
     power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, 'power') if has_power else {}

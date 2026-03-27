@@ -28,3 +28,6 @@ archive/
 
 #database sync scripts
 pull_db.sh
+
+#jupyter launcher:
+jupyter-lab-local.sh
