@@ -29,5 +29,8 @@ archive/
 #database sync scripts
 pull_db.sh
 
-#jupyter launcher:
+#jupyter stuff:
 jupyter-lab-local.sh
+jupyter/*.ipynb
+jupyter/.ipynb_checkpoints/
+.ipynb_checkpoints/
