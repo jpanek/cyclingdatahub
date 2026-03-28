@@ -23,6 +23,7 @@ def reclassify_all_activities():
             a.total_elevation_gain
         FROM activity_analytics aa
         JOIN activities a ON aa.strava_id = a.strava_id
+        order by aa.strava_id desc
     """
     
     activities = run_query(sql_fetch)
