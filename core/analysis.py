@@ -332,6 +332,9 @@ def classify_ride(metrics):
     Categorizes a ride based on physiological impact (Power/Intensity/Variability).
     No longer uses destination-based logic (Commutes).
     """
+
+    #print(metrics)
+
     duration_sec = metrics.get('duration_sec', 0)
     duration_min = duration_sec / 60
     
@@ -345,6 +348,7 @@ def classify_ride(metrics):
 
     p_z1, p_z2 = get_p('Z1'), get_p('Z2')
     p_z34 = get_p('Z3') + get_p('Z4')
+    p_z4 = get_p('Z4')
     p_high = get_p('Z5') + get_p('Z6') + get_p('Z7')
     
     dist_km = (metrics.get('distance_m', 0) / 1000.0)
@@ -356,7 +360,8 @@ def classify_ride(metrics):
     # 2. Hierarchical Classification (Training POV)
     
     # High Intensity / Work Capacity
-    if p_high > 12 or (p_high > 8 and if_val > 0.80):
+    #if p_high > 12 or (p_high > 8 and if_val > 0.80):
+    if p_high > 12 or (p_high > 8 and if_val > 0.80) or (p_z4 > 25 and if_val > 0.82):
         return "intervals"
 
     # Active Recovery (Low metabolic cost, high Z1)
@@ -364,10 +369,10 @@ def classify_ride(metrics):
         return "recovery"
 
     # Sustainable Intensity (Threshold & SweetSpot)
-    if if_val >= 0.82 and vi < 1.05:
+    if if_val >= 0.82 and vi < 1.10:
         return "threshold_tt"
     
-    if 0.75 <= if_val <= 0.88 and p_z34 > 35 and vi < 1.05:
+    if 0.75 <= if_val <= 0.88 and p_z34 > 35 and vi < 1.10:
         return "tempo_ss"
 
     # Aerobic Base (Z2 Dominance)
