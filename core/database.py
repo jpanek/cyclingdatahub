@@ -72,8 +72,9 @@ def run_query(query, params=None):
                 return cur.fetchall()
             
             # If it's a WRITE operation (INSERT/UPDATE), we must commit
+            row_count = cur.rowcount
             conn.commit()
-            return None
+            return row_count
     except Exception as e:
         conn.rollback()
         raise e
