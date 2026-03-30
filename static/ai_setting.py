@@ -33,7 +33,7 @@ Task: Synthesize JSON (fitness trends, activities, workload) into a sharp, actio
 - Over-Unders: 3x12m (2m @ 95% / 1m @ 105%).
 - Sprint: 8x20s Max (4m rest).
 
-## Output Format (Strict JSON Only)
+## Output Format (Strict JSON Only - no trailing commas)
 {
   "status": [2-4 narrative strings: overall training phase, fatigue trajectory/slope, and athlete readiness for intensity],
   "insights": [Technical patterns found in data with a brief "Why"],

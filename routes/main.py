@@ -575,6 +575,8 @@ def coach_page():
         )
         has_cache = bool(cached_res)
     
+    #has_cache = True
+
     # 3. Get the last used goal to pre-select in the UI
     last_goal_res = run_query(
         "SELECT goal FROM coach_advice WHERE athlete_id = %s ORDER BY generated_at DESC LIMIT 1",

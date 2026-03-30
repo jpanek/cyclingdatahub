@@ -144,6 +144,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
 
     #1. Get latest activity of the athlete:
     latest_act_res = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
+
     if not latest_act_res:
             return {
                 "referenced_strava_id": None,
@@ -155,6 +156,12 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     latest_strava_id = latest_act_res[0]['strava_id']
 
     today_date = datetime.now().date()
+
+    #latest_strava_id = 17885126589
+    #today_date = (datetime.now() - timedelta(days=2)).date()
+
+    #print(latest_strava_id)
+    #print(today_date)
 
     #2. Check if there is already record in the DB:
     cached_res = run_query(
@@ -184,15 +191,17 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     context = gather_coach_context(athlete_id)
     context['current_goal'] = goal
 
+    model_name = config.GEMINI_API_MODEL
+    system_instruction = SYSTEM_INSTRUCTION
     client = genai.Client(api_key=config.GEMINI_API_KEY)
     prompt = f"User Current Goal: {goal}\n\nAthlete Data Context: {json.dumps(context)}"
 
     try:
         response = client.models.generate_content(
-            model=config.GEMINI_API_MODEL,
+            model=model_name,
             # We tell the model to strictly return JSON
             config={
-                'system_instruction': SYSTEM_INSTRUCTION,
+                'system_instruction': system_instruction,
                 'response_mime_type': 'application/json'
             },
             contents=prompt
@@ -202,10 +211,24 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         advice_data = json.loads(response.text)
 
         # save it to db
-        run_query(
-            "INSERT INTO coach_advice (athlete_id, strava_id, advice_json, goal) VALUES (%s, %s, %s, %s)",
-            (athlete_id, latest_strava_id, json.dumps(advice_data), goal)
+        sql_insert = """
+            INSERT INTO coach_advice (
+                athlete_id, strava_id, advice_json, goal, 
+                model_name, system_instruction, prompt, athlete_context_json
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        params = (
+            athlete_id, 
+            latest_strava_id, 
+            json.dumps(advice_data), 
+            goal,
+            model_name,
+            system_instruction,
+            prompt,
+            json.dumps(context)
         )
+        run_query(sql_insert, params)
+
         advice_data['referenced_strava_id'] = latest_strava_id
         advice_data['goal'] = goal
         advice_data['generated_at'] = datetime.now()
