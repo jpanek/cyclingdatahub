@@ -36,7 +36,7 @@ Task: Synthesize JSON (fitness trends, activities, workload) into a sharp, actio
 ## Output Format (Strict JSON Only - no trailing commas)
 {
   "status": [2-4 narrative strings: overall training phase, fatigue trajectory/slope, and athlete readiness for intensity],
-  "insights": [Technical patterns found in data with a brief "Why"],
+  "insights": [2-4 narrative strings on rechnical patterns found in data with a brief "Why"],
   "recommendation": {
     "long_term_gap": "1-2 sentences on missing stimuli for 'current_goal'",
     "target": "Specific session (Duration, Intensity in Watts, Intervals)",
