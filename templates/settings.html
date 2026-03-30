@@ -22,15 +22,35 @@
                             <label class="form-label fw-semibold small">Manual FTP (Watts)</label>
                             <input type="number" name="manual_ftp" class="form-control" 
                                    value="{{ user.manual_ftp or '' }}" placeholder="empty (e.g. 304)">
-                            <div class="form-text text-muted" style="font-size: 0.75rem;">
-                                This will prioritize your custom FTP for TSS and Intensity calculations.
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <div class="form-text text-muted" style="font-size: 0.75rem;">
+                                    Prioritizes custom FTP for calculations.
+                                </div>
+                                {% if user.manual_ftp and user.manual_ftp_updated_at %}
+                                <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">
+                                    Set: {{ user.manual_ftp_updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
-
+                        
                         <div class="mb-3">
                             <label class="form-label fw-semibold small">Manual Max Heart Rate (BPM)</label>
                             <input type="number" name="manual_max_hr" class="form-control" 
                                    value="{{ user.manual_max_hr or '' }}" placeholder="empty (e.g. 190)">
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <div class="form-text text-muted" style="font-size: 0.75rem;">
+                                    Prioritizes custom max HR for calculations.
+                                </div>
+                                {% if user.manual_max_hr and user.manual_max_hr_updated_at %}
+                                <div class="text-end mt-1">
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">
+                                        Set: {{ user.manual_max_hr_updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div class="mb-4">
