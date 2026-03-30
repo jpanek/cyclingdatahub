@@ -166,7 +166,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     #2. Check if there is already record in the DB:
     cached_res = run_query(
             """
-            SELECT advice_json, goal, generated_at
+            SELECT advice_json, goal, generated_at, system_instruction, prompt
             FROM coach_advice 
             WHERE athlete_id = %s 
             AND strava_id = %s 
@@ -176,14 +176,17 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
             (athlete_id, latest_strava_id, today_date)
         )
     if cached_res:
-        advice = cached_res[0]['advice_json']
-        saved_goal = cached_res[0].get('goal', 'General Fitness')
+        row = cached_res[0]
+        advice = row['advice_json']
         
-
         advice_data = json.loads(advice) if isinstance(advice, str) else advice
         advice_data['referenced_strava_id'] = latest_strava_id
-        advice_data['goal'] = saved_goal
-        advice_data['generated_at'] = cached_res[0]['generated_at']
+        advice_data['goal'] = row.get('goal', 'General Fitness')
+        advice_data['generated_at'] = row['generated_at']
+        
+        # ADDED: Store these in the dict for the "Copy" feature in HTML
+        advice_data['system_instruction'] = row.get('system_instruction')
+        advice_data['prompt'] = row.get('prompt')
         return advice_data
     
     #3. No cached coaching advices, get them from AI:
@@ -232,6 +235,8 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         advice_data['referenced_strava_id'] = latest_strava_id
         advice_data['goal'] = goal
         advice_data['generated_at'] = datetime.now()
+        advice_data['system_instruction'] = system_instruction
+        advice_data['prompt'] = prompt
         return advice_data
 
     except Exception as e:

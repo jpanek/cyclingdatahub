@@ -69,4 +69,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<script>
+    function copyCoachContext() {
+        const container = document.getElementById('coach-container');
+        
+        // 1. Pull the data from the hidden inputs
+        const systemEl = container.querySelector('#raw_system');
+        const promptEl = container.querySelector('#raw_prompt');
+        const statusEl = container.querySelector('#raw_status');
+        const insightsEl = container.querySelector('#raw_insights');
+    
+        if (!systemEl || !promptEl) {
+            console.error("Missing hidden inputs in the DOM.");
+            return;
+        }
+    
+        const fullMessage = `
+    I am providing you with the technical context from my cycling analytics dashboard.
+    
+    ### 1. YOUR CORE INSTRUCTIONS:
+    You are a high-performance cycling coach/sports scientist
+    
+    ### 2. MY ATHLETE DATA (JSON):
+    ${promptEl.value}
+    
+    ### 3. MY PREVIOUS ASSESSMENT HAS BEEN:
+    STATUS: ${statusEl.value}
+    INSIGHTS: ${insightsEl.value}
+    
+    ---
+    ### MY FOLLOW-UP QUESTION:
+    [Type your question here]`;
+    
+        // 2. Try modern copy, then fallback
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(fullMessage).then(() => {
+                console.log("Context copied via Navigator API");
+                updateCopyButton();
+            }).catch(err => {
+                console.warn("Navigator API failed, trying fallback...");
+                fallbackCopy(fullMessage);
+            });
+        } else {
+            fallbackCopy(fullMessage);
+        }
+    }
+    
+    // THIS WAS MISSING OR OUT OF SCOPE:
+    function fallbackCopy(text) {
+        const el = document.getElementById('coachClipboard');
+        if (!el) {
+            console.error("coachClipboard element not found in coach_content.html");
+            return;
+        }
+        el.value = text;
+        el.style.display = 'block';
+        el.select();
+        try {
+            document.execCommand('copy');
+            console.log("Context copied via Fallback Command");
+            updateCopyButton();
+        } catch (err) {
+            console.error("All copy methods failed", err);
+        }
+        el.style.display = 'none';
+    }
+    
+    function updateCopyButton() {
+        const btn = document.getElementById('copyContextBtn');
+        if (!btn) return;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa fa-check me-1"></i> COPIED!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+        }, 2500);
+    }
+    </script>
+
 {% endblock %}

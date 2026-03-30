@@ -1,21 +1,28 @@
 <!-- templates/coach_content.html -->
 
 <div class="mb-3 px-1">
-    <div class="d-flex justify-content-between align-items-end">
+    <div class="d-flex justify-content-between align-items-start">
         <div>
             <h5 class="fw-bold mb-0">Training Assessment</h5>
             <small class="text-muted" style="font-size: 0.85rem;">
                 Based on activity <a href="/activity/{{ advice.referenced_strava_id }}" class="text-muted text-decoration-underline">#{{ advice.referenced_strava_id }}</a>
                 {% if advice.generated_at %}
-                <span class="mx-1">•</span> Analyzed {{ advice.generated_at.strftime('%b %d, %H:%M') }}
+                <span class="mx-1">•</span> {{ advice.generated_at.strftime('%b %d, %H:%M') }}
                 {% endif %}
             </small>
         </div>
-        <div class="text-end">
+
+        <div class="d-flex flex-column align-items-end gap-2">
             <span class="badge border text-dark font-monospace fw-normal" 
                style="font-size: 0.85rem; background-color: #e1eedd; border-color: #c3d9bc !important;">
                 GOAL: {{ advice.goal | upper }}
             </span>
+            <button class="btn btn-sm btn-outline-secondary font-monospace py-0 px-2" 
+                    id="copyContextBtn"
+                    onclick="copyCoachContext()" 
+                    style="font-size: 0.65rem; letter-spacing: 0.5px; height: 22px;">
+                <i class="fa fa-share-square me-1"></i> COPY CONTEXT
+            </button>
         </div>
     </div>
 </div>
@@ -84,3 +91,11 @@
     {% endfor %}
 </div>
 {% endif %}
+
+
+<input type="hidden" id="raw_system" value='{{ advice.system_instruction | e }}'>
+<input type="hidden" id="raw_prompt" value='{{ advice.prompt | e }}'>
+<input type="hidden" id="raw_status" value='{{ advice.status | join(" ") | e }}'>
+<input type="hidden" id="raw_insights" value='{{ advice.insights | join(" ") | e }}'>
+
+<textarea id="coachClipboard" style="display:none; position: fixed; top: -1000px;"></textarea>
