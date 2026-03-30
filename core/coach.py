@@ -33,7 +33,7 @@ def _strip_zeros(data_dict):
         return data_dict
     return {k: v for k, v in data_dict.items() if v not in [0, 0.0, None, {}]}
 
-def gather_coach_context(athlete_id, history_days=14, full_detail_limit=7):
+def gather_coach_context(athlete_id, history_days=14, full_detail_limit=6):
     """
     Gathers a training brief with optimized integer rounding and metadata context.
     """
@@ -106,7 +106,8 @@ def gather_coach_context(athlete_id, history_days=14, full_detail_limit=7):
                 "ef": clean_r.get('ef'),
                 "vi": clean_r.get('vi'),
                 "power_tiz": _strip_zeros(clean_r.get('power_tiz')),
-                "hr_tiz": _strip_zeros(clean_r.get('hr_tiz'))
+                "hr_tiz": _strip_zeros(clean_r.get('hr_tiz')),
+                "laps": clean_r.get('laps')
             })
         
         activity_data.append(act_item)
@@ -140,21 +141,24 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
             
             advice = DEBUG_OUTPUT.copy()
             advice['referenced_strava_id'] = mock_id
+            advice['goal'] = goal
+            advice['system_instruction'] = SYSTEM_INSTRUCTION
+            advice['athlete_context_json'] = "{}"
             return advice
 
     #1. Get latest activity of the athlete:
     latest_act_res = run_query(SQL_GET_LATEST_ACTIVITY_ID, (athlete_id,))
 
     if not latest_act_res:
-            return {
-                "referenced_strava_id": None,
-                "status": ["No activities found."], 
-                "insights": [], 
-                "recommendation": {"target": "N/A", "alternative": "N/A"}
-            }
+        return {
+            "referenced_strava_id": None,
+            "status": ["No activities found."], 
+            "insights": ["Connect Strava and sync activities first."], 
+            "recommendation": {"target": "N/A", "alternative": "N/A"},
+            "athlete_context_json": "{}"
+        }
 
     latest_strava_id = latest_act_res[0]['strava_id']
-
     today_date = datetime.now().date()
 
     #latest_strava_id = 17885126589
@@ -166,7 +170,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     #2. Check if there is already record in the DB:
     cached_res = run_query(
             """
-            SELECT advice_json, goal, generated_at, system_instruction, prompt
+            SELECT advice_json, goal, generated_at, system_instruction, athlete_context_json
             FROM coach_advice 
             WHERE athlete_id = %s 
             AND strava_id = %s 
@@ -186,18 +190,19 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         
         # ADDED: Store these in the dict for the "Copy" feature in HTML
         advice_data['system_instruction'] = row.get('system_instruction')
-        advice_data['prompt'] = row.get('prompt')
+        advice_data['athlete_context_json'] = row.get('athlete_context_json')
         return advice_data
     
     #3. No cached coaching advices, get them from AI:
-    print('Coaching fetched form Google Gemini') #-------------------------------
+    print(f"Coaching fetched from Google Gemini for activity {latest_strava_id}")
     context = gather_coach_context(athlete_id)
-    context['current_goal'] = goal
+    context['current_goal'] = goal # add goal to context
 
     model_name = config.GEMINI_API_MODEL
     system_instruction = SYSTEM_INSTRUCTION
     client = genai.Client(api_key=config.GEMINI_API_KEY)
-    prompt = f"User Current Goal: {goal}\n\nAthlete Data Context: {json.dumps(context)}"
+    prompt = f"Athlete Data Context: {json.dumps(context)}"
+    athlete_context_json = json.dumps(context, indent=2)
 
     try:
         response = client.models.generate_content(
@@ -228,7 +233,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
             model_name,
             system_instruction,
             prompt,
-            json.dumps(context)
+            athlete_context_json,
         )
         run_query(sql_insert, params)
 
@@ -236,7 +241,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         advice_data['goal'] = goal
         advice_data['generated_at'] = datetime.now()
         advice_data['system_instruction'] = system_instruction
-        advice_data['prompt'] = prompt
+        advice_data['athlete_context_json'] = athlete_context_json
         return advice_data
 
     except Exception as e:
@@ -250,5 +255,6 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
                 "alternative": "Not available",
                 "long_term_gap": "Analysis unavailable."
                 },
-            "metrics_flagged": []
+            "metrics_flagged": [],
+            "athlete_context_json": athlete_context_json if 'athlete_context_json' in locals() else "{}"
         }

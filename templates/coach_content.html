@@ -94,7 +94,7 @@
 
 
 <input type="hidden" id="raw_system" value='{{ advice.system_instruction | e }}'>
-<input type="hidden" id="raw_prompt" value='{{ advice.prompt | e }}'>
+<input type="hidden" id="raw_prompt" value='{{ advice.athlete_context_json | e }}'>
 <input type="hidden" id="raw_status" value='{{ advice.status | join(" ") | e }}'>
 <input type="hidden" id="raw_insights" value='{{ advice.insights | join(" ") | e }}'>
 

@@ -108,7 +108,8 @@ FROM users WHERE athlete_id = %s;
 SQL_GET_USER_SETTINGS = """
 SELECT 
     athlete_id, firstname, lastname, 
-    manual_ftp, detected_ftp, ftp_source_strava_id, ftp_detected_at,
+    manual_ftp,
+    detected_ftp, ftp_source_strava_id, ftp_detected_at,
     manual_max_hr, detected_max_hr, hr_source_strava_id, hr_detected_at,
     weight, updated_at,
     manual_ftp_updated_at, manual_max_hr_updated_at
@@ -422,26 +423,40 @@ SQL_GET_COACH_FITNESS_TREND = """
 """
 
 SQL_GET_COACH_RECENT_ACTIVITY_DETAILS = """
-    SELECT 
-        t.start_date_local::date as date,
-        t.name,
-        t.type,
-        ROUND((t.distance / 1000.0)::numeric, 1) as dist_km,
-        (t.moving_time / 60) as dur_min,
-        aa.weighted_avg_power as np,
-        aa.intensity_score as intensity,
-        aa.training_stress_score as tss,
-        aa.aerobic_decoupling as decoupling_pct,
-        aa.efficiency_factor as ef,
-        aa.variability_index as vi,
-        aa.power_tiz,
-        aa.hr_tiz,
-        aa.peak_20m
-    FROM activities t
-    LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
-    WHERE t.athlete_id = %s
-      AND t.start_date_local >= CURRENT_DATE - INTERVAL '14 days'
-      AND t.strava_id != 17792642743
-      AND t.moving_time > 600 -- Keep the 'noise' filter
-    ORDER BY t.start_date_local DESC
+SELECT 
+    t.start_date_local::date as date,
+    t.name,
+    t.type,
+    t.strava_id, -- Need this to link if we don't aggregate in SQL
+    ROUND((t.distance / 1000.0)::numeric, 1) as dist_km,
+    (t.moving_time / 60) as dur_min,
+    aa.weighted_avg_power as np,
+    aa.intensity_score as intensity,
+    aa.training_stress_score as tss,
+    aa.aerobic_decoupling as decoupling_pct,
+    aa.efficiency_factor as ef,
+    aa.variability_index as vi,
+    aa.power_tiz,
+    aa.hr_tiz,
+    -- NEW: Aggregated Laps as a JSON block
+    (
+        SELECT jsonb_agg(laps_data)
+        FROM (
+            SELECT 
+                lap_index as "index",
+                TO_CHAR((moving_time || ' seconds')::interval, 'MI:SS') as "time",
+                round(average_watts) as "power",
+                round(average_heartrate) as "hr"
+            FROM activity_laps 
+            WHERE strava_id = t.strava_id
+            ORDER BY lap_index ASC
+        ) laps_data
+    ) as laps
+FROM activities t
+LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
+WHERE t.athlete_id = %s
+  AND t.start_date_local >= CURRENT_DATE - INTERVAL '14 days'
+  AND t.strava_id != 17792642743
+  AND t.moving_time > 600
+ORDER BY t.start_date_local DESC
 """
