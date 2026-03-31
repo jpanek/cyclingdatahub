@@ -1,4 +1,4 @@
- # # .gitignore
+#.gitignore
 
 # Python
 __pycache__/
@@ -30,7 +30,6 @@ archive/
 pull_db.sh
 
 #jupyter stuff:
-jupyter-lab-local.sh
-jupyter/*.ipynb
-jupyter/.ipynb_checkpoints/
 .ipynb_checkpoints/
+jupyter/.ipynb_checkpoints/
+**/.ipynb_checkpoints/

@@ -10,7 +10,7 @@ from core.database import (
 from core.strava_api import get_valid_access_token, fetch_athlete_data, fetch_activities_list, fetch_activity_detail
 from core.processor import process_activity_metrics
 from core.crawl_analytics import sync_local_analytics
-import sys
+import sys, time
 
 def sync_single_activity(athlete_id, activity_id, run_analytics=True):
     conn = get_db_connection()
@@ -132,22 +132,22 @@ def run_sync(athlete_id, athlete_name="Athlete"):
             from config import NEW_USER_STREAMS_LOAD_COUNT
 
 
-            # -------------------- make sure that new user gets 90 days of streams data hisotry ------------------------
+            # -------------------- Define activiteis to process for new user ------------------------
             from dateutil import parser # Strava dates are ISO8601 strings
+            MAX_STREAMS_PER_SYNC = 50
 
             if is_new_user:
                 # 1. Define 90-day window
                 stabilization_cutoff = datetime.now() - timedelta(days=90)
+
+                recent_acts = [
+                    a for a in all_activities 
+                    if parser.parse(a['start_date_local']).replace(tzinfo=None) >= stabilization_cutoff
+                ]
+                recent_acts.sort(key=lambda x: x['start_date_local'], reverse=True)
+                activities_to_process = recent_acts[:MAX_STREAMS_PER_SYNC]
                 
-                activities_to_process = []
-                for a in all_activities:
-                    # Parse the Strava string into a Python datetime
-                    ride_date = parser.parse(a['start_date_local']).replace(tzinfo=None)
-                    
-                    if ride_date >= stabilization_cutoff:
-                        activities_to_process.append(a)
-                
-                print(f"\tNew user stabilization: Processing {len(activities_to_process)} activities from the last 90 days.")
+                print(f"\t🚀 New user: Found {len(recent_acts)} in 90d. Processing the {len(activities_to_process)} most recent.")
             else:
                 activities_to_process = all_activities
 
@@ -166,13 +166,18 @@ def run_sync(athlete_id, athlete_name="Athlete"):
                     try:
                         # 1. Fetch the activity streams (details)
                         sync_activity_streams(conn,athlete_id,strava_id)
-                        print(f"\t  ✨ Activity stream saved for {strava_id}")
-
                         process_activity_metrics(strava_id, force=True)
-                        print(f"\t  ✨ Analyticsl metrics calculated for {strava_id}")
+
+                        time.sleep(1)
+                        print(f"\t  ✨ Activity {strava_id}: Stream saved & Metrics calculated")
 
                     except Exception as stream_error:
-                        print(f"\t  ⚠️ Could not sync streams for {strava_id}: {stream_error}")
+
+                        if "429" in str(stream_error):
+                            print(f"\t  🚨 Rate limit hit for {strava_id}. Cooling down for 30s...")
+                            time.sleep(30)
+                        else:
+                            print(f"\t  ⚠️ Could not sync streams for {strava_id}: {stream_error}")
                 
 
                 from core.database import invalidate_analytics_from_date
