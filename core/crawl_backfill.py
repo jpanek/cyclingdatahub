@@ -51,18 +51,8 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
                     
                     if older_summaries:
 
-                        # --- DEBUG START ---
-                        print(f"\t🔍 Debug: Strava returned {len(older_summaries)} activities. including 1 s substraction")
-                        for act in older_summaries:
-                            print(f"\t   - ID: {act['id']} | Date: {act['start_date_local']} | Type: {act['type']} | Name: {act['name']}")
-                        # --- DEBUG END ---
-
                         rows_inserted = save_db_activities(conn, a_id, older_summaries)
                         print(f"\t✅ Added {len(older_summaries)} historical summaries.")
-
-                        # --- DEBUG START ---
-                        print(f"\t rows inserted: {rows_inserted}.")
-                        # --- DEBUG END ---
 
                     else:
                         # No more activities found on Strava -> We are finished forever.
