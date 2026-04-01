@@ -52,7 +52,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
                     if older_summaries:
 
                         # --- DEBUG START ---
-                        print(f"\t🔍 Debug: Strava returned {len(older_summaries)} activities.")
+                        print(f"\t🔍 Debug: Strava returned {len(older_summaries)} activities. including 1 s substraction")
                         for act in older_summaries:
                             print(f"\t   - ID: {act['id']} | Date: {act['start_date_local']} | Type: {act['type']} | Name: {act['name']}")
                         # --- DEBUG END ---
