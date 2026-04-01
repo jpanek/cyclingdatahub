@@ -129,12 +129,12 @@ def run_sync(athlete_id, athlete_name="Athlete"):
             save_db_activities(conn, athlete_id, activities)
             print(f"\t✅ Loaded {len(activities)} activities.")
 
-            from config import NEW_USER_STREAMS_LOAD_COUNT
+            
 
 
             # -------------------- Define activiteis to process for new user ------------------------
             from dateutil import parser # Strava dates are ISO8601 strings
-            MAX_STREAMS_PER_SYNC = 50
+            from config import NEW_USER_STREAMS_LOAD_COUNT
 
             if is_new_user:
                 # 1. Define 90-day window
@@ -145,7 +145,7 @@ def run_sync(athlete_id, athlete_name="Athlete"):
                     if parser.parse(a['start_date_local']).replace(tzinfo=None) >= stabilization_cutoff
                 ]
                 recent_acts.sort(key=lambda x: x['start_date_local'], reverse=True)
-                activities_to_process = recent_acts[:MAX_STREAMS_PER_SYNC]
+                activities_to_process = recent_acts[:NEW_USER_STREAMS_LOAD_COUNT]
                 
                 print(f"\t🚀 New user: Found {len(recent_acts)} in 90d. Processing the {len(activities_to_process)} most recent.")
             else:
