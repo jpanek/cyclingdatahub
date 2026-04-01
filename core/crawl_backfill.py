@@ -46,7 +46,7 @@ def crawl_backfill(batch_size_per_user=3, history_days=365, sleep_time=1):
                 conn = get_db_connection()
                 try:
                     tokens_dict = get_valid_access_token(conn, a_id)
-                    before_ts = int(db_oldest.timestamp())
+                    before_ts = int(db_oldest.timestamp()) -1
                     older_summaries = fetch_activities_list(tokens_dict['access_token'], {"before": before_ts, "per_page": 200})
                     
                     if older_summaries:
