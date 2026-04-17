@@ -187,6 +187,38 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     
     return active_ftp, active_hr
 
+def process_lap_details(strava_id, watts_series):
+    """
+    Function to calculate the additional metrics for laps data
+    """
+    if not watts_series:
+        return
+
+    # 1. Fetch lap indices for this activity
+    laps = run_query("""
+        SELECT lap_id, start_index, end_index 
+        FROM activity_laps 
+        WHERE strava_id = %s
+        ORDER BY lap_index ASC
+    """, (strava_id,))
+    
+    if not laps:
+        return
+
+    for lap in laps:
+        # 2. Slice the stream (inclusive)
+        start, end = lap['start_index'], lap['end_index']
+        lap_watts = watts_series[start : end + 1]
+        
+        # 3. Use your existing analysis function directly
+        lap_np = calculate_weighted_power(lap_watts)
+        
+        # 4. Update the DB
+        run_query(
+            "UPDATE activity_laps SET weighted_avg_power = %s WHERE lap_id = %s", 
+            (lap_np, lap['lap_id'])
+        )
+
 def process_activity_metrics(strava_id, force=False):
     """Main orchestrator for activity analytics."""
     
@@ -339,5 +371,9 @@ def process_activity_metrics(strava_id, force=False):
         vi_score, ef_score, if_score, tss_score, Json(power_curve), Json(hr_curve), Json(cadence_curve),
         Json(power_tiz), Json(hr_tiz), ride_label
     ))
+
+    #8. Laps enrichemnt
+    if has_power:
+        process_lap_details(strava_id, streams['watts_series'])
 
     return True

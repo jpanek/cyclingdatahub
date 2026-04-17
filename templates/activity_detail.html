@@ -836,8 +836,8 @@
         if (lapsData.length > 0) {
             lapsSummary = [
                 `**LAPS**`,
-                `| # | Time | Power | HR | Cadence |`,
-                `|---|---|---|---|---|`,
+                `| # | Time | Power | HR | Cadence | Norm. Power | VI |`,
+                `|---|---|---|---|---|---|---|`,
                 ...lapsData.map((l, index) => { // 1. Added index here
                     const min = Math.floor(l.moving_time / 60);
                     const sec = l.moving_time % 60;
@@ -845,8 +845,12 @@
                     const pwr = Math.round(l.average_watts || 0);
                     const hr = Math.round(l.average_heartrate || 0);
                     const cad = Math.round(l.average_cadence || 0);
+                    const n_pwr = Math.round(l.weighted_avg_power || 0);
+                    const vi = l.average_watts > 0 
+                        ? (l.weighted_avg_power / l.average_watts).toFixed(2) 
+                        : "1.00";
                     // 2. Changed l.lap_index to index + 1
-                    return `| ${index + 1} | ${timeStr} | ${pwr}W | ${hr}bpm | ${cad} |`;
+                    return `| ${index + 1} | ${timeStr} | ${pwr}W | ${hr}bpm | ${cad} | ${n_pwr} | ${vi} |`;
                 }),
                 ``
             ].join('\n');
