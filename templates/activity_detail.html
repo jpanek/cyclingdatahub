@@ -850,7 +850,7 @@
                         ? (l.weighted_avg_power / l.average_watts).toFixed(2) 
                         : "1.00";
                     // 2. Changed l.lap_index to index + 1
-                    return `| ${index + 1} | ${timeStr} | ${pwr}W | ${hr}bpm | ${cad} | ${n_pwr} | ${vi} |`;
+                    return `| ${index + 1} | ${timeStr} | ${pwr}W | ${hr}bpm | ${cad} | ${n_pwr}W | ${vi} |`;
                 }),
                 ``
             ].join('\n');
