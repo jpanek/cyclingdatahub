@@ -267,10 +267,12 @@
         window.location.href = `/performance?months=${months}`;
     });
 
-    document.getElementById('togglePerformances').addEventListener('click', function() {
+    document.getElementById('togglePerformances').addEventListener('click', function(e) {
+        e.preventDefault(); 
         const extraRows = document.querySelectorAll('.extra-row');
-        const isHidden = extraRows[0].classList.contains('d-none');
+        if (!extraRows.length) return;
 
+        const isHidden = extraRows[0].classList.contains('d-none');
         extraRows.forEach(row => row.classList.toggle('d-none'));
         this.innerText = isHidden ? 'Show Less' : 'Show More';
     });

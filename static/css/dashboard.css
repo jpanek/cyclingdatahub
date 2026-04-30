@@ -104,3 +104,10 @@
     border-right: 1px solid #eee;
     padding-right: 0.5rem;
 }
+
+
+#togglePerformances {
+        position: relative; /* Forces the button above the stretched-link layer */
+        z-index: 10;        /* Explicitly stacks it on top */
+        cursor: pointer;    /* Vital for iOS to recognize it as clickable */
+    }
