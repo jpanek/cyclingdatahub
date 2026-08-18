@@ -87,6 +87,7 @@ FROM activities a
 LEFT JOIN activity_analytics s ON a.strava_id = s.strava_id
 WHERE a.athlete_id = %s
   AND (%s IS NULL OR a.type = %s)
+  AND (%s::text IS NULL OR a.name ILIKE %s)
   AND (a.start_date_local >= %s)
   AND (a.start_date_local <= %s)
 ORDER BY a.start_date_local desc

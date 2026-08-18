@@ -203,6 +203,7 @@ def performance_dashboard():
 def activities_list():
     athlete_id = session.get('athlete_id')
     activity_type = request.args.get('type') or None
+    search_term = request.args.get('search') or None
     date_from = request.args.get('from') or (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     date_to = request.args.get('to') or datetime.now().strftime('%Y-%m-%d')
     export_format = request.args.get('export')
@@ -211,6 +212,8 @@ def activities_list():
     activities = run_query(SQL_DAILY_ACTIVITIES_HISTORY, (
         athlete_id, 
         activity_type, activity_type, 
+        f"%{search_term}%" if search_term else None,
+        f"%{search_term}%" if search_term else None,
         date_from, 
         f"{date_to} 23:59:59"
     ))
@@ -232,6 +235,7 @@ def activities_list():
         since_date=date_from,
         until_date=date_to,
         current_type=activity_type,
+        search_term=search_term,
         activity_types=activity_types
     )
 

@@ -217,6 +217,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         
         # Parse the JSON string back to dict
         advice_data = json.loads(response.text)
+        print(response)
 
         # save it to db
         sql_insert = """

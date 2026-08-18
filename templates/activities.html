@@ -36,7 +36,9 @@
     <div class="card shadow-sm mb-4 border-0 bg-light">
         <div class="card-body">
             <form method="GET" action="/activities" class="row g-3 align-items-end">
-                <div class="col-md-3">
+
+                <!--Activity type filter-->
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">Activity Type</label>
                     <select name="type" class="form-select border-0 shadow-sm">
                         <option value="">All Types</option>
@@ -47,18 +49,31 @@
                         {% endfor %}
                     </select>
                 </div>
+
+                <!-- Search input field -->
                 <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Search Activity</label>
+                    <input type="text" name="search" class="form-control border-0 shadow-sm" placeholder="Search name..." value="{{ search_term or '' }}">
+                </div>
+                
+                <!-- Date from filter -->
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">From</label>
                     <input type="date" name="from" class="form-control border-0 shadow-sm" value="{{ since_date }}">
                 </div>
-                <div class="col-md-3">
+
+                <!-- Date to filter -->
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">To</label>
                     <input type="date" name="to" class="form-control border-0 shadow-sm" value="{{ until_date }}">
                 </div>
+
+                <!-- Button to submit -->
                 <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1 shadow-sm">Filter</button>
                     <a href="/activities" class="btn btn-white border shadow-sm text-decoration-none text-dark">Reset</a>
                 </div>
+
             </form>
         </div>
     </div>
