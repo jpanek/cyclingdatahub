@@ -35,7 +35,74 @@ main_bp = Blueprint('main', __name__)
 def index():
     athlete_id = session.get('athlete_id')
     if not athlete_id:
-            return render_template('login.html')
+        TEASER_ACTIVITY_ID = 19768916042
+
+        # 1. Fetch activity details using main SQL template
+        results = run_query(SQL_ACTIVITY_DETAILS, (TEASER_ACTIVITY_ID,))
+        if not results:
+            return render_template('login.html', activity=None)
+
+        activity = results[0]
+        teaser_athlete_id = activity.get('athlete_id')
+
+        # 2. Map pre-calculated DB columns to interval bests
+        activity['interval_bests'] = {
+            '5s':  {'power': activity.get('peak_5s'),  'hr': activity.get('peak_5s_hr')},
+            '1m':  {'power': activity.get('peak_1m'),  'hr': activity.get('peak_1m_hr')},
+            '5m':  {'power': activity.get('peak_5m'),  'hr': activity.get('peak_5m_hr')},
+            '20m': {'power': activity.get('peak_20m'), 'hr': activity.get('peak_20m_hr')}
+        }
+
+        # 3. Prev/Next IDs
+        prev_res = run_query(SQL_PREVIOUS_ACTIVITY_ID, (teaser_athlete_id, TEASER_ACTIVITY_ID))
+        next_res = run_query(SQL_NEXT_ACTIVITY_ID, (teaser_athlete_id, TEASER_ACTIVITY_ID))
+        prev_id = prev_res[0]['strava_id'] if prev_res else None
+        next_id = next_res[0]['strava_id'] if next_res else None
+
+        # 4. Best power curve
+        best_curve = get_best_power_curve(teaser_athlete_id, months=12)
+
+        # 5. Fitness metrics & deltas
+        fitness_sql = """
+            SELECT date, ctl, atl, tsb 
+            FROM athlete_daily_metrics 
+            WHERE athlete_id = %s 
+              AND date <= %s::date
+            ORDER BY date DESC
+            LIMIT 2
+        """
+        fitness_res = run_query(fitness_sql, (teaser_athlete_id, activity['start_date_local']))
+        fitness_data = fitness_res[0] if len(fitness_res) > 0 else {}
+        yesterday_data = fitness_res[1] if len(fitness_res) > 1 else None
+
+        current_tsb = fitness_data.get('tsb')
+        tsb_zone = get_db_zone_for_value('tsb', current_tsb)
+
+        deltas = {}
+        if yesterday_data:
+            for metric in ['ctl', 'atl', 'tsb']:
+                if fitness_data.get(metric) is not None and yesterday_data.get(metric) is not None:
+                    deltas[metric] = fitness_data[metric] - yesterday_data[metric]
+
+        # 6. Zones
+        zone_ranges = get_zone_descriptions(
+            activity.get('baseline_ftp'), 
+            activity.get('baseline_max_hr')
+        )
+
+        return render_template(
+            'login.html',
+            activity=activity,
+            prev_id=prev_id,
+            next_id=next_id,
+            best_power=best_curve,
+            recent_activities=[],
+            fitness=fitness_data,
+            fitness_deltas=deltas,
+            tsb_zone=tsb_zone,
+            zone_ranges=zone_ranges,
+            laps=[]
+        )
     
     res = run_query("SELECT COUNT(*) as count FROM activities WHERE athlete_id = %s", (athlete_id,))
     activity_count = res[0]['count'] if res else 0
