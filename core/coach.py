@@ -194,7 +194,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         return advice_data
     
     #3. No cached coaching advices, get them from AI:
-    print(f"Coaching fetched from Google Gemini for activity {latest_strava_id}")
+    print(f"Starting fetching coach from Google Gemini for activity {latest_strava_id}")
     context = gather_coach_context(athlete_id)
     context['current_goal'] = goal # add goal to context
 
@@ -217,7 +217,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         
         # Parse the JSON string back to dict
         advice_data = json.loads(response.text)
-        print(response)
+        #print(response)
 
         # save it to db
         sql_insert = """
