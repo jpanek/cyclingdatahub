@@ -179,6 +179,9 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
             """,
             (athlete_id, latest_strava_id, today_date)
         )
+    #to remove
+    cached_res = 0
+
     if cached_res:
         row = cached_res[0]
         advice = row['advice_json']
@@ -198,9 +201,20 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     context = gather_coach_context(athlete_id)
     context['current_goal'] = goal # add goal to context
 
-    model_name = config.GEMINI_API_MODEL
     system_instruction = SYSTEM_INSTRUCTION
-    client = genai.Client(api_key=config.GEMINI_API_KEY)
+
+    # old
+    #model_name = config.GEMINI_API_MODEL
+    #client = genai.Client(api_key=config.GEMINI_API_KEY)
+
+    #new
+    client = genai.Client(
+        vertexai=True,
+        project=config.GCP_PROJECT_ID,
+        location=config.GCP_LOCATION
+    )
+    model_name = config.GCP_MODEL
+
     prompt = f"Athlete Data Context: {json.dumps(context)}"
     athlete_context_json = json.dumps(context, indent=2)
 
@@ -217,7 +231,8 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         
         # Parse the JSON string back to dict
         advice_data = json.loads(response.text)
-        #print(response)
+        #print("I got to this point")
+        #print(advice_data)
 
         # save it to db
         sql_insert = """

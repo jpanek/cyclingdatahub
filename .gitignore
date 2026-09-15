@@ -12,6 +12,7 @@ logs/*.log
 
 # Configuration & Secrets
 config.py
+cyclingstats-service-account-key.json
 
 # Database
 *.db
