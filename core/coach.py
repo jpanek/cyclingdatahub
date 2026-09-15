@@ -180,7 +180,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
             (athlete_id, latest_strava_id, today_date)
         )
     #to remove
-    cached_res = 0
+    #cached_res = 0
 
     if cached_res:
         row = cached_res[0]
