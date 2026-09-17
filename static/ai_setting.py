@@ -27,10 +27,15 @@ Task: Synthesize JSON (fitness trends, activities, workload) into a sharp, actio
 ## 📋 Workout Library (Templates)
 - Recovery: 30–60m @ <55% FTP.
 - Endurance: 90m–4h @ 60–75% FTP.
+- Long Endurance: 4–6h @ 60–72% FTP.
+- Tempo: 2x20–30m @ 80–88% FTP (5–8m rest).
 - Sweet Spot: 2x20m or 3x15m @ 88–94% FTP (5m rest).
 - Threshold: 3x10m or 2x15m @ 95–105% FTP (5m rest).
+- Long Threshold: 2x20m @ 95–100% FTP (5–8m rest).
+- Over-Unders: 3x12m (2m @ 95% / 1m @ 105% FTP).
 - VO2 Max: 5x3m or 4x4m @ 110–120% FTP (3m rest).
-- Over-Unders: 3x12m (2m @ 95% / 1m @ 105%).
+- Short VO2: 6–8x2m @ 115–125% FTP (2–3m rest).
+- Anaerobic Capacity: 6–8x1m @ 120–140% FTP (3–5m rest).
 - Sprint: 8x20s Max (4m rest).
 
 ## Output Format (Strict JSON Only - no trailing commas)
@@ -50,6 +55,7 @@ Task: Synthesize JSON (fitness trends, activities, workload) into a sharp, actio
 - Perspective: Speak directly to the athlete, use narrative sentences.
 - No introductory fluff or closing remarks.
 - No markdown outside the JSON block.
+- Take into account todays date and recent rides dates (if workout alrady took place today, don't suggest one etc)
 """
 
 DEBUG_OUTPUT = {

@@ -33,7 +33,7 @@ def _strip_zeros(data_dict):
         return data_dict
     return {k: v for k, v in data_dict.items() if v not in [0, 0.0, None, {}]}
 
-def gather_coach_context(athlete_id, history_days=14, full_detail_limit=6):
+def gather_coach_context(athlete_id, history_days=16, full_detail_limit=8):
     """
     Gathers a training brief with optimized integer rounding and metadata context.
     """
@@ -195,11 +195,18 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         advice_data['system_instruction'] = row.get('system_instruction')
         advice_data['athlete_context_json'] = row.get('athlete_context_json')
         return advice_data
+
+    #get todays date to the coach:
+    today = datetime.now()
+    today_str = today.strftime("%Y-%m-%d")
+    day_name = today.strftime("%A")
     
     #3. No cached coaching advices, get them from AI:
     print(f"Starting fetching coach from Google Gemini for activity {latest_strava_id}")
     context = gather_coach_context(athlete_id)
     context['current_goal'] = goal # add goal to context
+    context['today_date'] = today_str
+    context['today_day_of_week'] = day_name
 
     system_instruction = SYSTEM_INSTRUCTION
 
