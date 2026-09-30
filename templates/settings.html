@@ -53,6 +53,24 @@
                             </div>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Manual Lactate Threshold HR (BPM)</label>
+                            <input type="number" name="manual_lthr" class="form-control" 
+                                   value="{{ user.manual_lthr or '' }}" placeholder="empty (e.g. 175)">
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <div class="form-text text-muted" style="font-size: 0.75rem;">
+                                    Prioritizes custom LTHR for calculations.
+                                </div>
+                                {% if user.manual_lthr and user.manual_lthr_updated_at %}
+                                <div class="text-end mt-1">
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">
+                                        Set: {{ user.manual_lthr_updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label fw-semibold small">Weight (kg)</label>
                             <input type="number" step="0.1" name="weight" class="form-control" 
@@ -73,7 +91,7 @@
             </div>
         </div>
 
-        <!-- Current max values for FPT and HR with links -->
+        <!-- Current max values for FTP, Max HR, and LTHR with links -->
         <div class="col-md-5">
             <div class="card shadow-sm bg-light border-0">
                 <div class="card-header bg-transparent fw-bold border-0">System Detected Baselines</div>
@@ -97,7 +115,7 @@
                         {% endif %}
                     </div>
         
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="text-muted d-block small">Detected Max HR</label>
                         <span class="fs-4 fw-bold text-danger d-block">{{ user.detected_max_hr or '---' }} bpm</span>
                         
@@ -110,6 +128,24 @@
                             </a>
                             {% if user.hr_detected_at %}
                             <span class="text-muted ms-1" style="font-size: 0.7rem;">({{ user.hr_detected_at.strftime('%Y-%m-%d') }})</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted d-block small">Detected LTHR</label>
+                        <span class="fs-4 fw-bold text-info d-block">{{ user.detected_lthr or '---' }} bpm</span>
+                        
+                        {% if user.lthr_source_strava_id %}
+                        <div class="mt-1">
+                            <a href="{{ url_for('main.activity_detail', strava_id=user.lthr_source_strava_id) }}" 
+                               class="text-info text-decoration-none small fw-semibold" 
+                               style="font-size: 0.75rem;">
+                               <i class="bi bi-link-45deg"></i> View Peak Ride
+                            </a>
+                            {% if user.lthr_detected_at %}
+                            <span class="text-muted ms-1" style="font-size: 0.7rem;">({{ user.lthr_detected_at.strftime('%Y-%m-%d') }})</span>
                             {% endif %}
                         </div>
                         {% endif %}

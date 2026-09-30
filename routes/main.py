@@ -354,10 +354,11 @@ def settings():
         # 1. Process the data
         ftp = request.form.get('manual_ftp') or None
         max_hr = request.form.get('manual_max_hr') or None
+        lthr = request.form.get('manual_lthr') or None
         weight = request.form.get('weight') or None
         
         from core.database import update_user_manual_settings
-        update_user_manual_settings(athlete_id, ftp=ftp, max_hr=max_hr, weight=weight)
+        update_user_manual_settings(athlete_id, ftp=ftp, max_hr=max_hr,lthr=lthr, weight=weight)
         
         # 2. Flash the message
         flash("Settings updated successfully!", "success")

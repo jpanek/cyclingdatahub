@@ -85,7 +85,8 @@ def get_athlete_context(strava_id):
             a.moving_time, a.elapsed_time, a.distance, a.total_elevation_gain,
             u.manual_ftp, u.detected_ftp, u.ftp_detected_at,
             u.manual_max_hr, u.detected_max_hr, u.hr_detected_at,
-            u.manual_ftp_updated_at, u.manual_max_hr_updated_at
+            u.manual_lthr, u.detected_lthr, u.lthr_detected_at,
+            u.manual_ftp_updated_at, u.manual_max_hr_updated_at, u.manual_lthr_updated_at
         FROM activities a 
         JOIN users u ON u.athlete_id = a.athlete_id 
         WHERE a.strava_id = %s
@@ -97,10 +98,9 @@ def get_athlete_context(strava_id):
     context = dict(results[0])
     return context
 
-def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr):
-    """
-    Refined logic: Uses split windows for FTP (90 days) and HR (365 days).
-    Returns the active baseline and updates the users table with the true source ride.
+def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr, ride_lthr_est):
+    """Refined logic: Uses split windows for FTP (90 days), LTHR (90 days), and HR (365 days).
+    Returns active baselines and updates the users table with the true source rides.
     """
     from datetime import timedelta
     import config
@@ -108,6 +108,7 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     # 1. Define the two different lookback windows
     ftp_lookback = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) # 90 days
     hr_lookback = ride_date - timedelta(days=config.HR_LOOKBACK_DAYS)   # 365 days
+    lthr_lookback = ride_date - timedelta(days=config.FTP_LOOKBACK_DAYS) #90 days same as FTP
     
     # 2. Query for the bests + their source metadata using JSON objects
     history_sql = """
@@ -129,12 +130,22 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
                AND a.start_date_local >= %s AND a.start_date_local < %s
                AND aa.peak_5s_hr IS NOT NULL
              ORDER BY aa.peak_5s_hr DESC, a.start_date_local DESC LIMIT 1
-            ) as hr_data
+            ) as hr_data,
+            -- LTHR Source (90 days - peak 20m HR)
+            (SELECT json_build_object('val', aa.peak_20m_hr, 'id', aa.strava_id, 'date', a.start_date_local)
+             FROM activity_analytics aa 
+             JOIN activities a ON aa.strava_id = a.strava_id
+             WHERE a.athlete_id = %s AND a.type = ANY(%s)
+               AND a.start_date_local >= %s AND a.start_date_local < %s
+               AND aa.peak_20m_hr IS NOT NULL
+             ORDER BY aa.peak_20m_hr DESC, a.start_date_local DESC LIMIT 1
+            ) as lthr_data
     """
     
     params = (
         athlete_id, config.ANALYTICS_ACTIVITIES, ftp_lookback, ride_date, # FTP params
-        athlete_id, config.ANALYTICS_ACTIVITIES, hr_lookback, ride_date   # HR params
+        athlete_id, config.ANALYTICS_ACTIVITIES, hr_lookback, ride_date,   # HR params
+        athlete_id, config.ANALYTICS_ACTIVITIES, lthr_lookback, ride_date # LTHR params
     )
     
     history_res = run_query(history_sql, params)
@@ -143,11 +154,15 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
     # Extract results (Postgres JSON comes back as Python dicts)
     ftp_record = res.get('ftp_data') or {}
     hr_record = res.get('hr_data') or {}
+    lthr_record = res.get('lthr_data') or {}
 
     # Fallbacks to Profile/Config
     # We prioritize manual profile settings if they exist, otherwise use history or defaults
     historic_ftp = ftp_record.get('val') or context.get('manual_ftp') or config.DEFAULT_FTP
     historic_hr = hr_record.get('val') or context.get('manual_max_hr') or context.get('detected_max_hr') or config.DEFAULT_MAX_HR
+    # Fallback LTHR to ~88% of max HR if no history exists yet
+    default_lthr = int(historic_hr * 0.88)
+    historic_lthr = lthr_record.get('val') or context.get('manual_lthr') or default_lthr
 
     # 3. Breakthrough Logic: Is today's ride a new peak?
     # Determine Active FTP and its Source
@@ -170,6 +185,16 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
         hr_sid = hr_record.get('id') or context.get('hr_source_strava_id')
         hr_date = hr_record.get('date') or context.get('hr_detected_at')
 
+    # LTHR
+    if ride_lthr_est >= historic_lthr:
+        active_lthr = ride_lthr_est
+        lthr_sid = context['strava_id']
+        lthr_date = ride_date
+    else:
+        active_lthr = historic_lthr
+        lthr_sid = lthr_record.get('id') or context.get('lthr_source_strava_id')
+        lthr_date = lthr_record.get('date') or context.get('lthr_detected_at')
+
     # 4. Global Update: Sync the 'users' table if we are at the front of the timeline
     current_detection_date = context.get('ftp_detected_at')
     
@@ -181,11 +206,19 @@ def resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, curre
                 ftp_detected_at = %s,
                 detected_max_hr = %s, 
                 hr_source_strava_id = %s, 
-                hr_detected_at = %s
+                hr_detected_at = %s,
+                detected_lthr = %s,
+                lthr_source_strava_id = %s,
+                lthr_detected_at = %s
             WHERE athlete_id = %s
-        """, (active_ftp, ftp_sid, ftp_date, active_hr, hr_sid, hr_date, athlete_id))
+        """, (
+            active_ftp, ftp_sid, ftp_date, 
+            active_hr, hr_sid, hr_date, 
+            active_lthr, lthr_sid, lthr_date, 
+            athlete_id
+        ))
     
-    return active_ftp, active_hr
+    return active_ftp, active_hr, active_lthr
 
 def process_lap_details(strava_id, watts_series):
     """
@@ -267,9 +300,10 @@ def process_activity_metrics(strava_id, force=False):
     decoupling_val = calculate_aerobic_decoupling(streams['watts_series'], streams['heartrate_series']) if (has_power and has_hr) else 0
     ride_ftp_est = int(bests.get('peak_power_20m') * 0.95) if (has_power and bests.get('peak_power_20m')) else 0
     current_max_hr = int(max(streams['heartrate_series'])) if (has_hr and len(streams['heartrate_series']) > 0) else 0
+    ride_lthr_est = int(bests.get('peak_20m_hr')) if (has_hr and bests.get('peak_20m_hr')) else 0
 
     # 4.1 FTP Baseline resolution
-    adaptive_ftp, adaptive_hr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr)
+    adaptive_ftp, adaptive_hr, adaptive_lthr = resolve_adaptive_fitness(athlete_id, ride_date, context, ride_ftp_est, current_max_hr, ride_lthr_est)
 
     if context['manual_ftp'] and context['manual_ftp_updated_at'] and ride_date >= context['manual_ftp_updated_at']:
         active_ftp = context['manual_ftp']
@@ -285,6 +319,11 @@ def process_activity_metrics(strava_id, force=False):
     else:
         active_hr = adaptive_hr
         #print(f"HR: Calculated ({active_hr})")
+    if context.get('manual_lthr') and context.get('manual_lthr_updated_at') and ride_date >= context['manual_lthr_updated_at']:
+        active_lthr = context['manual_lthr']
+    else:
+        active_lthr = adaptive_lthr
+    
 
     # 4b. Calculate time spent in zones:
     power_tiz = calculate_time_in_zones(streams['watts_series'], active_ftp, 'power') if has_power else {}
@@ -340,16 +379,17 @@ def process_activity_metrics(strava_id, force=False):
     INSERT INTO activity_analytics (
         strava_id, peak_5s, peak_1m, peak_5m, peak_20m, 
         peak_5s_hr, peak_1m_hr, peak_5m_hr, peak_20m_hr,
-        weighted_avg_power, baseline_ftp, baseline_max_hr, max_vam, aerobic_decoupling,
+        weighted_avg_power, baseline_ftp, baseline_max_hr, baseline_lthr, max_vam, aerobic_decoupling,
         variability_index, efficiency_factor, intensity_score, 
         training_stress_score, power_curve, hr_curve, cadence_curve,
         power_tiz, hr_tiz, classification,
         updated_at
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     ON CONFLICT (strava_id) DO UPDATE SET
         weighted_avg_power = EXCLUDED.weighted_avg_power,
         baseline_ftp = EXCLUDED.baseline_ftp,
         baseline_max_hr = EXCLUDED.baseline_max_hr,
+        baseline_lthr = EXCLUDED.baseline_lthr,
         intensity_score = EXCLUDED.intensity_score,
         training_stress_score = EXCLUDED.training_stress_score,
         power_curve = EXCLUDED.power_curve,
@@ -367,7 +407,7 @@ def process_activity_metrics(strava_id, force=False):
         bests.get('peak_power_5m'), bests.get('peak_power_20m'),
         bests.get('peak_hr_5s'), bests.get('peak_hr_1m'), 
         bests.get('peak_hr_5m'), bests.get('peak_hr_20m'),
-        weighted_pwr, active_ftp, active_hr, vam_val, decoupling_val,
+        weighted_pwr, active_ftp, active_hr, active_lthr, vam_val, decoupling_val,
         vi_score, ef_score, if_score, tss_score, Json(power_curve), Json(hr_curve), Json(cadence_curve),
         Json(power_tiz), Json(hr_tiz), ride_label
     ))

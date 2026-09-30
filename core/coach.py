@@ -33,7 +33,13 @@ def _strip_zeros(data_dict):
         return data_dict
     return {k: v for k, v in data_dict.items() if v not in [0, 0.0, None, {}]}
 
-def gather_coach_context(athlete_id, history_days=16, full_detail_limit=8):
+#def gather_coach_context(athlete_id, history_days=16, full_detail_limit=8):
+def gather_coach_context(
+    athlete_id,
+    history_days=16,        # how many days to analyze & send to AI
+    query_days=28,          # how many days to fetch from DB
+    full_detail_limit=8     # how many activities get full metrics
+    ):
     """
     Gathers a training brief with optimized integer rounding and metadata context.
     """
@@ -47,26 +53,32 @@ def gather_coach_context(athlete_id, history_days=16, full_detail_limit=8):
         if raw_context:
             athlete_profile = {
                 "ftp": raw_context.get('manual_ftp') or raw_context.get('detected_ftp'),
-                "max_hr": raw_context.get('manual_max_hr') or raw_context.get('detected_max_hr')
+                "max_hr": raw_context.get('manual_max_hr') or raw_context.get('detected_max_hr'),
+                "lthr": raw_context.get('manual_lthr') or raw_context.get('detected_lthr')
             }
 
     # 2. Get Fitness Trend
-    raw_trend = run_query(SQL_GET_COACH_FITNESS_TREND, (athlete_id,))
+    raw_trend = run_query(SQL_GET_COACH_FITNESS_TREND, (athlete_id, query_days))
     trend_data = [_clean_row(r) for r in raw_trend]
     
     ramp_rate_7d = 0
     tsb_min_period = 0
-    if trend_data:
-        tsb_min_period = min(r['tsb'] for r in trend_data[-history_days:])
-        if len(trend_data) >= 7:
-            # Keep 1 decimal for ramp rate as 3.1 vs 3.9 is a real difference
-            ramp_rate_7d = round(trend_data[-1]['ctl'] - trend_data[-7]['ctl'], 1)
+
+    trend_window = trend_data[-history_days:] if len(trend_data) >= history_days else trend_data
+
+    if trend_window:
+        tsb_min_period = min(r['tsb'] for r in trend_window)
+
+    if len(trend_data) >= 7:
+        ramp_rate_7d = round(trend_data[-1]['ctl'] - trend_data[-7]['ctl'], 1)
 
     # Only send 7 days of daily rows to save tokens
-    short_trend = trend_data[-7:] if len(trend_data) > 7 else trend_data
+    #short_trend = trend_data[-7:] if len(trend_data) > 7 else trend_data
+    short_trend = trend_window
+
 
     # 3. Get Recent Activities
-    raw_activities = run_query(SQL_GET_COACH_RECENT_ACTIVITY_DETAILS, (athlete_id,))
+    raw_activities = run_query(SQL_GET_COACH_RECENT_ACTIVITY_DETAILS, (athlete_id,query_days))
     
     today = datetime.now().date()
     seven_days_ago = (today - timedelta(days=7)).isoformat()
@@ -128,7 +140,7 @@ def gather_coach_context(athlete_id, history_days=16, full_detail_limit=8):
             "prev_week_total_tss": int(round(prev_week_tss)),
             "workload_delta_pct": int(round(((this_week_tss - prev_week_tss) / (prev_week_tss or 1)) * 100))
         },
-        "fitness_trend_7d": short_trend,
+        "fitness_trend": trend_window,
         "recent_activities": activity_data
     }
 
@@ -225,6 +237,8 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
     prompt = f"Athlete Data Context: {json.dumps(context)}"
     athlete_context_json = json.dumps(context, indent=2)
 
+    print(athlete_context_json)
+
     try:
         response = client.models.generate_content(
             model=model_name,
@@ -238,7 +252,7 @@ def get_coaching_advice(athlete_id, goal="General Fitness", debug=False):
         
         # Parse the JSON string back to dict
         advice_data = json.loads(response.text)
-        #print("I got to this point")
+        
         #print(advice_data)
 
         # save it to db

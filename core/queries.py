@@ -112,8 +112,9 @@ SELECT
     manual_ftp,
     detected_ftp, ftp_source_strava_id, ftp_detected_at,
     manual_max_hr, detected_max_hr, hr_source_strava_id, hr_detected_at,
+    manual_lthr, detected_lthr, lthr_source_strava_id, lthr_detected_at,
     weight, updated_at,
-    manual_ftp_updated_at, manual_max_hr_updated_at
+    manual_ftp_updated_at, manual_max_hr_updated_at, manual_lthr_updated_at
 FROM users 
 WHERE athlete_id = %s
 """
@@ -136,7 +137,7 @@ SELECT
     s.time_series, s.watts_series, s.heartrate_series, s.cadence_series, s.velocity_series, s.latlng_series,
     an.peak_5s, an.peak_1m, an.peak_5m, an.peak_20m, 
     an.peak_5s_hr, an.peak_1m_hr, an.peak_5m_hr, an.peak_20m_hr,
-    an.weighted_avg_power, an.baseline_ftp, 
+    an.weighted_avg_power, an.baseline_ftp, an.baseline_lthr,
     an.baseline_max_hr,
     an.aerobic_decoupling,
     an.variability_index, an.efficiency_factor, an.intensity_score,
@@ -419,7 +420,7 @@ SQL_GET_COACH_FITNESS_TREND = """
     SELECT date, ctl, atl, tsb 
     FROM athlete_daily_metrics 
     WHERE athlete_id = %s 
-      AND date >= CURRENT_DATE - INTERVAL '14 days'
+      AND date >= (CURRENT_DATE - (%s * INTERVAL '1 day'))
     ORDER BY date ASC
 """
 
@@ -439,6 +440,7 @@ SELECT
     aa.variability_index as vi,
     aa.power_tiz,
     aa.hr_tiz,
+    t.total_elevation_gain AS elev_gain_m,
     -- NEW: Aggregated Laps as a JSON block
     (
         SELECT jsonb_agg(laps_data)
@@ -456,7 +458,7 @@ SELECT
 FROM activities t
 LEFT JOIN activity_analytics aa ON aa.strava_id = t.strava_id 
 WHERE t.athlete_id = %s
-  AND t.start_date_local >= CURRENT_DATE - INTERVAL '14 days'
+  AND t.start_date_local >= CURRENT_DATE - INTERVAL '%s days'
   AND t.strava_id != 17792642743
   AND t.moving_time > 600
 ORDER BY t.start_date_local DESC

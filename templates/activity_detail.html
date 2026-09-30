@@ -872,7 +872,7 @@
             `- **Power Zones:** ${formatZones(pwrTiz)}`,
             ``,
             `**PHYSIOLOGY**`,
-            `- **Heart Rate:** Avg \`{{ (activity.average_heartrate | default(0, true)) | round | int }}bpm\` | Max \`{{ (activity.max_heartrate | default(0, true)) | round | int }}bpm\` | Max Baseline \`{{ (activity.baseline_max_hr | default(0, true)) | round | int }}bpm\``,
+            `- **Heart Rate:** Avg \`{{ (activity.average_heartrate | default(0, true)) | round | int }}bpm\` | Max \`{{ (activity.max_heartrate | default(0, true)) | round | int }}bpm\` | Max Baseline \`{{ (activity.baseline_max_hr | default(0, true)) | round | int }}bpm\` | LTHR Baseline \`{{ (activity.baseline_lthr | default(0, true)) | round | int }}bpm\``,
             `- **HR Zones:** ${formatZones(hrTiz)}`,
             `- **Cadence:** Avg \`{{ (activity.average_cadence | default(0, true)) | round | int }} rpm\``,
             `- **Efficiency:** EF: \`{{ activity.efficiency_factor or 0 }}\` | Decoupling: \`{{ activity.aerobic_decoupling or 0 }}%\``,
